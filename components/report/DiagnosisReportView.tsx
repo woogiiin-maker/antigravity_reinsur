@@ -74,24 +74,54 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
   const [isUploadingProposal, setIsUploadingProposal] = useState<boolean>(false);
   const [comparisonResult, setComparisonResult] = useState<ProposedComparisonResult | null>(null);
 
-  // 제안받은 보험 업로드 처리
+  // 제안받은 보험 파일 일괄 처리 로직 (파일 선택 및 드래그앤드롭 공용)
+  const processProposalFiles = async (fileList: FileList | File[]) => {
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
+    setIsUploadingProposal(true);
+    try {
+      const parsed = await parseMultiplePolicyFiles(files);
+      if (parsed.length > 0) {
+        const nextProposed = [...proposedPolicies, ...parsed];
+        setProposedPolicies(nextProposed);
+        const comp = compareProposedPolicies(profile, existingPolicies, nextProposed);
+        setComparisonResult(comp);
+      }
+    } catch (err) {
+      console.error('제안서 파싱 오류:', err);
+    } finally {
+      setIsUploadingProposal(false);
+    }
+  };
+
+  // 파일 선택 인풋 핸들러
   const handleProposalUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const files = Array.from(e.target.files);
-      setIsUploadingProposal(true);
-      try {
-        const parsed = await parseMultiplePolicyFiles(files);
-        if (parsed.length > 0) {
-          const nextProposed = [...proposedPolicies, ...parsed];
-          setProposedPolicies(nextProposed);
-          const comp = compareProposedPolicies(profile, existingPolicies, nextProposed);
-          setComparisonResult(comp);
-        }
-      } catch (err) {
-        console.error('제안서 파싱 오류:', err);
-      } finally {
-        setIsUploadingProposal(false);
-      }
+      await processProposalFiles(e.target.files);
+    }
+  };
+
+  // 제안받은 보험 드래그앤드롭 상태 및 핸들러
+  const [isDraggingProposal, setIsDraggingProposal] = useState<boolean>(false);
+
+  const handleProposalDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingProposal(true);
+  };
+
+  const handleProposalDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingProposal(false);
+  };
+
+  const handleProposalDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingProposal(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      await processProposalFiles(e.dataTransfer.files);
     }
   };
 
@@ -705,8 +735,18 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
 
         {/* 제안서 업로드 존 & 샘플 추가 버튼 */}
         <div className="space-y-2.5">
-          <div className="border-2 border-dashed border-indigo-300 hover:border-indigo-500 bg-indigo-50/40 rounded-xl p-3.5 text-center transition-all">
-            <label className="flex flex-col items-center justify-center cursor-pointer">
+          <div
+            onDragOver={handleProposalDragOver}
+            onDragEnter={handleProposalDragOver}
+            onDragLeave={handleProposalDragLeave}
+            onDrop={handleProposalDrop}
+            className={`border-2 border-dashed rounded-2xl p-4 text-center transition-all cursor-pointer ${
+              isDraggingProposal
+                ? 'border-indigo-600 bg-indigo-100/80 ring-4 ring-indigo-300/50 shadow-inner'
+                : 'border-indigo-300 hover:border-indigo-500 bg-indigo-50/40 hover:bg-indigo-50/70 shadow-xs'
+            }`}
+          >
+            <label className="flex flex-col items-center justify-center cursor-pointer w-full h-full">
               <input
                 type="file"
                 multiple
@@ -715,20 +755,28 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
                 className="hidden"
               />
               {isUploadingProposal ? (
-                <div className="flex items-center gap-2 py-2">
-                  <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                <div className="flex items-center gap-2 py-3">
+                  <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
                   <span className="text-xs font-bold text-indigo-700">
                     제안서 보장 내역을 정밀 분석 중입니다...
                   </span>
                 </div>
               ) : (
-                <div className="flex flex-col items-center py-1">
-                  <Upload className="w-5 h-5 text-indigo-600 mb-1" />
+                <div className="flex flex-col items-center py-2">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center mb-2 shadow-sm shadow-indigo-200">
+                    <Upload
+                      className={`w-5 h-5 transition-transform ${
+                        isDraggingProposal ? 'scale-125' : ''
+                      }`}
+                    />
+                  </div>
                   <span className="text-xs font-bold text-indigo-950">
-                    제안받은 보험 견적서(PDF / 사진) 업로드
+                    {isDraggingProposal
+                      ? '여기에 견적서/제안서 파일을 놓아주세요!'
+                      : '제안받은 보험 견적서(PDF / 사진) 업로드 (드래그 & 드롭 가능)'}
                   </span>
-                  <span className="text-[10px] text-indigo-600/80 mt-0.5">
-                    설계사에게 받은 제안서를 올리면 한정특약 필터링 및 보완 효과를 자동 계산합니다.
+                  <span className="text-[11px] text-indigo-600/80 mt-1 max-w-[340px]">
+                    설계사에게 받은 제안서를 드래그하거나 클릭하여 올리면 한정특약 필터링 및 보완 효과를 자동 계산합니다.
                   </span>
                 </div>
               )}
