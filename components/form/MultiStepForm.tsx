@@ -268,11 +268,39 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
       {/* 상단 네비게이션 & 스텝 프로그레스 */}
       <div>
         <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+          <button
+            type="button"
+            onClick={() => setStep(1)}
+            className="flex items-center gap-2 hover:opacity-85 transition-all text-left cursor-pointer group"
+            title="클릭 시 처음(홈)으로 이동합니다"
+          >
+            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+              <HeartPulse className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1">
+                <h1 className="text-sm sm:text-base font-extrabold text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">
+                  건강보험 진단
+                </h1>
+                {step > 1 && (
+                  <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 font-bold rounded">
+                    홈으로
+                  </span>
+                )}
+              </div>
+            </div>
+          </button>
           <div className="flex items-center gap-1.5">
-            <HeartPulse className="w-5 h-5 text-blue-600 shrink-0" />
-            <h1 className="text-sm sm:text-base font-bold text-slate-800">건강보험 진단</h1>
-          </div>
-          <div className="flex items-center gap-1.5">
+            {step > 1 && (
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold border border-blue-200 shadow-xs flex items-center gap-1 transition-all active:scale-95 cursor-pointer"
+                title="처음 화면으로 돌아가기"
+              >
+                <span>🏠 홈</span>
+              </button>
+            )}
             {onOpenSettings && (
               <button
                 type="button"

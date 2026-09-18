@@ -26,6 +26,8 @@ import {
   ArrowRight,
   TrendingUp,
   ShieldAlert,
+  Home,
+  HeartPulse,
 } from 'lucide-react';
 import {
   Radar,
@@ -178,20 +180,47 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
 
   return (
     <div className="w-full max-w-mobile mx-auto min-h-screen bg-slate-50 p-4 pb-12 shadow-xl border-x border-slate-200 space-y-5">
-      {/* 최상단 타이틀 바 */}
+      {/* 최상단 타이틀 바 & 홈 바로가기 */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-        <div>
-          <span className="text-[11px] font-bold text-blue-600">진단 결과 리포트</span>
-          <h1 className="text-sm sm:text-base font-bold text-slate-800">
-            만 {profile.age}세 {profile.gender === 'male' ? '남성' : '여성'} 맞춤 분석
-          </h1>
-        </div>
+        <button
+          type="button"
+          onClick={onReset}
+          className="flex items-center gap-2 hover:opacity-85 transition-all text-left cursor-pointer group"
+          title="클릭 시 초기 홈 화면으로 이동합니다"
+        >
+          <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+            <HeartPulse className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-sm sm:text-base font-extrabold text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">
+                건강보험 진단
+              </h1>
+              <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 font-bold rounded-md">
+                홈으로
+              </span>
+            </div>
+            <p className="text-[10.5px] text-slate-500">
+              만 {profile.age}세 {profile.gender === 'male' ? '남성' : '여성'} 맞춤 리포트
+            </p>
+          </div>
+        </button>
+
         <div className="flex items-center gap-1.5">
+          <button
+            onClick={onReset}
+            type="button"
+            className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs flex items-center gap-1 font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
+            title="처음 홈 화면으로 이동"
+          >
+            <Home className="w-3.5 h-3.5" />
+            <span>홈으로</span>
+          </button>
           {onOpenSettings && (
             <button
               onClick={onOpenSettings}
               type="button"
-              className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
+              className="px-2 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
               title="Gemini API 키 설정"
             >
               <span>⚙️</span>
@@ -201,21 +230,13 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
             <button
               onClick={onOpenSaved}
               type="button"
-              className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs flex items-center gap-1 font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
+              className="px-2 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs flex items-center gap-1 font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
               title="보관함 저장 및 조회"
             >
               <Bookmark className="w-3.5 h-3.5 text-blue-600" />
               <span className="text-[11px]">보관함</span>
             </button>
           )}
-          <button
-            onClick={onReset}
-            type="button"
-            className="p-1.5 text-slate-500 hover:text-slate-800 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs flex items-center gap-1 font-semibold transition-all shadow-xs active:scale-95 cursor-pointer"
-            title="다시 진단하기"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
         </div>
       </div>
 
@@ -1048,6 +1069,18 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
         <p>
           본 진단 리포트는 사용자가 입력한 연령, 성별, 가족력 및 등록 증권 정보에 기반하여 산출된 참고용 분석 리포트이며, 실제 보험 가입 및 인수 여부는 각 보험사의 언더라이팅 심사 기준에 따라 달라질 수 있습니다.
         </p>
+      </div>
+
+      {/* 최하단 홈으로 가기 (새로운 진단 시작) 버튼 */}
+      <div className="pt-2">
+        <button
+          type="button"
+          onClick={onReset}
+          className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-98 cursor-pointer"
+        >
+          <Home className="w-4 h-4" />
+          <span>🏠 처음 화면으로 가기 (홈으로)</span>
+        </button>
       </div>
     </div>
   );

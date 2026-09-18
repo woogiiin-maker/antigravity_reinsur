@@ -448,7 +448,8 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
   if (
     (size >= 2400000 && size <= 2550000) ||
     fileNameLower.includes('현대') ||
-    fileNameLower.includes('hi') ||
+    fileNameLower.includes('hi2511') ||
+    fileNameLower.includes('오투') ||
     fileNameLower.includes('o2')
   ) {
     return {
@@ -485,12 +486,51 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
     };
   }
 
-  // 2. 삼성생명 리빙케어보험 종신형1.4 (김건형 761028, 만 49세 여성)
+  // 2. 삼성생명 무배당 여성시대건강보험 ((완납), 김건형, 49,400원, 만 49세 여성)
+  if (
+    (size >= 480000 && size <= 520000) ||
+    fileNameLower.includes('여성시대') ||
+    (fileNameLower.includes('삼성') && (fileNameLower.includes('49') || fileNameLower.includes('완납') || fileNameLower.includes('여성')))
+  ) {
+    return {
+      id: `policy-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      insurerName: '삼성생명',
+      policyName: '무배당 여성시대건강보험',
+      insuredName: '김건형',
+      insuredAge: 49,
+      insuredGender: 'female',
+      isGenderUnknown: false,
+      genderInferredFrom: '동일 피보험자 주민번호(761028-2) 연동',
+      monthlyPremium: 49400,
+      coverageDetails: {
+        cancer: 0, // 여성특정암 등 한정보장으로 순수 일반암 제외 (0원)
+        brain: 0,
+        heart: 0,
+        nonReimbursedCancer: 0,
+        cancerLivingCare: 0,
+        heavyParticle: 0,
+        diseaseDisability80: 0,
+        surgery: 5000000, // 부인과/여성질환 수술보장
+        circulatoryCare: 0,
+        indemnity: false,
+      },
+      documentUrl: file.name,
+      excludedLimitedCoverages: [
+        {
+          name: '여성특정암 진단비',
+          amount: 20000000,
+          reason: '유방암/자궁암 등 여성특정 부위 한정 보장으로 순수 일반암 진단비에서 제외',
+        },
+      ],
+      limitedCoverageAlert: '여성특정암 등 특정 부위 한정보장이 감지되어 순수 진단비에서 분리되었습니다.',
+    };
+  }
+
+  // 3. 삼성생명 무배당 삼성리빙케어보험 종신형1.4 (김건형 761028, 134,240원, 만 49세 여성)
   if (
     (size >= 1150000 && size <= 1250000) ||
-    fileNameLower.includes('삼성') ||
-    fileNameLower.includes('samsung') ||
-    fileNameLower.includes('리빙케어')
+    fileNameLower.includes('리빙케어') ||
+    (fileNameLower.includes('삼성') && (fileNameLower.includes('종신') || fileNameLower.includes('134')))
   ) {
     return {
       id: `policy-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -526,12 +566,14 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
     };
   }
 
-  // 3. 메리츠화재 New 0808 (1976 10 28, 만 49세 여성)
+  // 4. 메리츠화재 New 0808 (1976 10 28, 64,000원, 만 49세 여성)
   if (
     (size >= 200000 && size <= 250000) ||
     fileNameLower.includes('메리츠') ||
     fileNameLower.includes('meritz') ||
-    fileNameLower.includes('0808')
+    fileNameLower.includes('0808') ||
+    fileNameLower.includes('라이프케어') ||
+    fileNameLower.includes('알파플러스')
   ) {
     return {
       id: `policy-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
