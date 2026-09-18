@@ -121,6 +121,7 @@ export interface ExistingPolicy {
   monthlyPremium: number;
   maturityDate?: string;
   documentUrl?: string;
+  insuredName?: string; // 피보험자 이름 (예: '김*형', '홍길동')
   insuredAge?: number; // 자동 추출된 피보험자 나이
   insuredGender?: Gender; // 자동 추출된 피보험자 성별
   isGenderUnknown?: boolean; // 성별 미확인 여부

@@ -67,6 +67,7 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
 
   // 증권 업로드 시 자동 감지된 나이/성별 피드백 상태
   const [autoDetectedAlert, setAutoDetectedAlert] = useState<{
+    name?: string;
     age: number;
     gender: Gender;
     isGenderUnknown?: boolean;
@@ -130,27 +131,20 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
       });
 
       if (parsed.length > 0) {
-        // 증권에서 피보험자 나이와 성별 자동 추출 반영
-        let detectedAge = age;
-        let detectedGender = gender;
+        // 증권에서 피보험자 나이와 성별 자동 추출 반영 (일괄 동기화된 대표값 사용)
+        const representative = parsed[0];
+        const detectedAge = representative.insuredAge && representative.insuredAge > 0 ? representative.insuredAge : age;
+        const detectedGender = representative.insuredGender || gender;
 
-        const policyWithAge = parsed.find((p) => p.insuredAge && p.insuredAge > 0);
-        if (policyWithAge?.insuredAge) {
-          detectedAge = policyWithAge.insuredAge;
-          setAge(policyWithAge.insuredAge);
-        }
-
-        const policyWithGender = parsed.find((p) => p.insuredGender);
-        if (policyWithGender?.insuredGender) {
-          detectedGender = policyWithGender.insuredGender;
-          setGender(policyWithGender.insuredGender);
-        }
+        setAge(detectedAge);
+        setGender(detectedGender);
 
         setAutoDetectedAlert({
+          name: representative.insuredName,
           age: detectedAge,
           gender: detectedGender,
-          isGenderUnknown: policyWithGender?.isGenderUnknown ?? false,
-          genderInferredFrom: policyWithGender?.genderInferredFrom,
+          isGenderUnknown: representative.isGenderUnknown ?? false,
+          genderInferredFrom: representative.genderInferredFrom,
           count: parsed.length,
           insurer: parsed[0]?.insurerName || '보험사',
         });
@@ -613,7 +607,13 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                           ) : (
                             <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-emerald-800">
                               <span>
-                                인식된 피보험자: <span className="font-extrabold text-emerald-950">만 {age}세 ({gender === 'male' ? '남성' : '여성'})</span>
+                                인식된 피보험자:{' '}
+                                {autoDetectedAlert.name && (
+                                  <span className="font-bold text-indigo-700 bg-indigo-100/80 px-1.5 py-0.5 rounded mr-1">
+                                    👤 {autoDetectedAlert.name} 님
+                                  </span>
+                                )}
+                                <span className="font-extrabold text-emerald-950">만 {age}세 ({gender === 'male' ? '남성' : '여성'})</span>
                                 {autoDetectedAlert.genderInferredFrom && (
                                   <span className="text-[10px] text-emerald-700 ml-1">
                                     ({autoDetectedAlert.genderInferredFrom})
@@ -727,7 +727,12 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                                     </span>
                                     <span>{pol.policyName}</span>
                                   </div>
-                                  <div className="text-[11px] text-slate-500 mt-1 flex flex-wrap gap-2">
+                                  <div className="text-[11px] text-slate-500 mt-1 flex flex-wrap gap-2 items-center">
+                                    {pol.insuredName && (
+                                      <span className="font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded text-[10px]">
+                                        피보험자: {pol.insuredName}
+                                      </span>
+                                    )}
                                     <span>월 {Number(pol.monthlyPremium).toLocaleString()}원</span>
                                     <span>• 암 {(pol.coverageDetails.cancer / 10000).toLocaleString()}만</span>
                                     <span>• 뇌 {(pol.coverageDetails.brain / 10000).toLocaleString()}만</span>

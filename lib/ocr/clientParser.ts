@@ -113,6 +113,13 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
   let isGenderUnknown = false;
   let genderInferredFrom: string | undefined = undefined;
 
+  // 1-0. 피보험자 이름 추출 (예: '피보험자 : 김*형', '계약자/피보험자: 김우형')
+  let detectedName: string | undefined = undefined;
+  const nameMatch = rawText.match(/(?:피보험자|대상자|보험대상자|성명|이름)\s*[:：]?\s*([가-힣*]{2,5})/);
+  if (nameMatch) {
+    detectedName = nameMatch[1].trim();
+  }
+
   // 1-1. 주민등록번호 패턴 (예: 881024-1xxxxxx 또는 920512-2xxxxxx)
   const rrnMatch = rawText.match(/\b(\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\s*[-–]\s*([1-4])/);
   if (rrnMatch) {
@@ -122,6 +129,7 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
     const currentYear = new Date().getFullYear();
     detectedAge = currentYear - birthYear;
     detectedGender = genderDigit === 1 || genderDigit === 3 ? 'male' : 'female';
+    isGenderUnknown = false;
     genderInferredFrom = `주민등록번호 뒷자리(${genderDigit})`;
   }
 
@@ -142,7 +150,6 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
   }
 
   // 1-4. 상품명 및 담보명에서 남성/여성 구분 정밀 분석
-  // (예: 같은 이름의 보험이라도 "시그니처 여성건강" vs "시그니처 남성건강" 자동 판정)
   const femaleSignals = [
     '여성건강', '여성종합', '여성전용', '여성특정', '레이디', '우먼', '미즈', 'miz', 'lady', 'woman',
     '자궁경부', '자궁암', '난소암', '유방암', '임신', '출산', '엄마', '어머니', '딸', '아내', '여성시대'
@@ -155,33 +162,37 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
   const hasFemaleSignal = femaleSignals.some((s) => text.includes(s));
   const hasMaleSignal = maleSignals.some((s) => text.includes(s));
 
-  if (hasFemaleSignal && !hasMaleSignal) {
-    detectedGender = 'female';
-    genderInferredFrom = '상품명/특약(여성 구분)';
-  } else if (hasMaleSignal && !hasFemaleSignal) {
-    detectedGender = 'male';
-    genderInferredFrom = '상품명/특약(남성 구분)';
-  } else if (!rrnMatch) {
-    // 텍스트에서 '피보험자 : 여' 또는 '성별 : 여' 등 직접 표기 확인
-    if (text.match(/(?:피보험자|성별|관계)\s*[:：]\s*여/)) {
+  if (!rrnMatch) {
+    if (hasFemaleSignal && !hasMaleSignal) {
       detectedGender = 'female';
+      isGenderUnknown = false;
+      genderInferredFrom = '상품명/특약(여성 구분)';
+    } else if (hasMaleSignal && !hasFemaleSignal) {
+      detectedGender = 'male';
+      isGenderUnknown = false;
+      genderInferredFrom = '상품명/특약(남성 구분)';
+    } else if (text.match(/(?:피보험자|성별|관계)\s*[:：]\s*여/)) {
+      detectedGender = 'female';
+      isGenderUnknown = false;
       genderInferredFrom = '피보험자 성별 표기(여)';
     } else if (text.match(/(?:피보험자|성별|관계)\s*[:：]\s*남/)) {
       detectedGender = 'male';
+      isGenderUnknown = false;
       genderInferredFrom = '피보험자 성별 표기(남)';
     } else {
       isGenderUnknown = true;
     }
   }
 
-  const finalAge = detectedAge && detectedAge >= 15 && detectedAge <= 90 ? detectedAge : 38;
+  const finalAge = detectedAge && detectedAge >= 15 && detectedAge <= 90 ? detectedAge : undefined;
 
   // 2. 보험사명 매칭
-  let insurer = '현대해상';
+  let insurer = '보험사';
   if (text.includes('삼성화재') || text.includes('삼성')) insurer = '삼성화재';
   else if (text.includes('db손보') || text.includes('db손해보험') || text.includes('동부화재')) insurer = 'DB손해보험';
   else if (text.includes('kb손보') || text.includes('kb손해보험') || text.includes('케이비')) insurer = 'KB손해보험';
   else if (text.includes('메리츠') || text.includes('meritz')) insurer = '메리츠화재';
+  else if (text.includes('현대해상') || text.includes('현대')) insurer = '현대해상';
   else if (text.includes('한화손보') || text.includes('한화손해보험') || text.includes('한화')) insurer = '한화손해보험';
   else if (text.includes('흥국화재') || text.includes('흥국')) insurer = '흥국화재';
   else if (text.includes('롯데손보') || text.includes('롯데손해보험') || text.includes('롯데')) insurer = '롯데손해보험';
@@ -192,7 +203,7 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
   else if (text.includes('라이나생명') || text.includes('라이나')) insurer = '라이나생명';
 
   // 3. 상품명 추정
-  let policy = `${insurer} 건강보장보험`;
+  let policy = `${insurer} 건강보장`;
   const policyMatch = rawText.match(/(?:상품명|보험계약명|보험종목)\s*[:：=]?\s*([가-힣A-Za-z0-9\s()·]+)/);
   if (policyMatch && policyMatch[1]?.trim().length > 3) {
     policy = policyMatch[1].trim().split('\n')[0].substring(0, 30);
@@ -211,67 +222,99 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
     return val;
   };
 
-  // 5. 조건부/한정보장 제외 목록
+  // 5. 조건부/한정보장 제외 목록 (우리가족보험 핵심보장 필터링 룰 완전 동기화)
   const excluded: ExcludedLimitedCoverage[] = [];
 
-  // 남녀특정암 / 여성특정암 검출 ➔ 일반암 제외
-  const specialCancerMatch = rawText.match(/(남녀특정암[가-힣A-Za-z0-9\s()·]*|여성특정암[가-힣A-Za-z0-9\s()·]*|유방암\s*진단[가-힣\s]*|자궁암\s*진단[가-힣\s]*)\s*[:：=]?\s*([\d,]+)/i);
+  // 5-1. 암 부위 한정/유사암/남녀특정암 검출 ➔ 일반암 제외
+  const specialCancerMatch = rawText.match(
+    /((?:남녀특정암|여성특정암|남성특정암|소액암|유사암|갑상선암|기타피부암|경계성종양|제자리암|3대암|5대고액암|고액암|재진단암|특정암|다발성소아암|소아백혈병|유방암\s*진단|자궁암\s*진단)[가-힣A-Za-z0-9\s()·]*)\s*[:：=]?\s*([\d,]+)/i
+  );
   if (specialCancerMatch) {
     const amt = parseAmount(new RegExp(specialCancerMatch[1].replace(/[()]/g, '\\$&') + '\\s*[:：=]?\\s*([\\d,]+)'));
     excluded.push({
       name: specialCancerMatch[1].trim(),
-      amount: amt > 0 ? amt : 5000000,
-      reason: '일반암 전체 미보장 / 부위·성별 한정으로 순수 암진단비에서 제외',
+      amount: amt > 0 ? amt : 0,
+      reason: '일반암 전체 미보장 / 특정 부위·종류·성별 한정으로 순수 일반암 진단비에서 제외',
     });
   }
 
-  // 뇌졸중/뇌경색 한정 검출 ➔ 뇌혈관 제외
-  const strokeMatch = rawText.match(/(뇌졸중\s*진단[가-힣\s()]*|뇌경색\s*진단[가-힣\s()]*|뇌출혈\s*진단[가-힣\s()]*)\s*[:：=]?\s*([\d,]+)/i);
+  // 5-2. 뇌졸중/뇌경색/뇌출혈 한정 검출 ➔ 뇌혈관 질환 진단비 제외
+  const strokeMatch = rawText.match(
+    /((?:뇌졸중\s*진단|뇌경색\s*진단|뇌출혈\s*진단|양성뇌종양)[가-힣\s()·]*)\s*[:：=]?\s*([\d,]+)/i
+  );
   if (strokeMatch) {
     const amt = parseAmount(new RegExp(strokeMatch[1].replace(/[()]/g, '\\$&') + '\\s*[:：=]?\\s*([\\d,]+)'));
     excluded.push({
       name: strokeMatch[1].trim(),
-      amount: amt > 0 ? amt : 20000000,
-      reason: '뇌혈관 질환 전체(I60~I69) 미보장(뇌졸중/경색 한정)으로 순수 뇌질환 진단비에서 제외',
+      amount: amt > 0 ? amt : 0,
+      reason: '뇌혈관 질환 전체(I60~I69) 미보장(뇌졸중/뇌경색/뇌출혈 한정)으로 순수 뇌혈관질환 진단비에서 제외',
     });
   }
 
-  // 급성심근경색 한정 검출 ➔ 심장 제외
-  const heartAttackMatch = rawText.match(/(급성심근경색[증\s]*진단[가-힣\s()]*)\s*[:：=]?\s*([\d,]+)/i);
+  // 5-3. 급성심근경색 한정 검출 ➔ 심장 제외
+  const heartAttackMatch = rawText.match(
+    /((?:급성심근경색[증\s]*진단|심근경색[증\s]*진단)[가-힣\s()·]*)\s*[:：=]?\s*([\d,]+)/i
+  );
   if (heartAttackMatch) {
     const amt = parseAmount(new RegExp(heartAttackMatch[1].replace(/[()]/g, '\\$&') + '\\s*[:：=]?\\s*([\\d,]+)'));
     excluded.push({
       name: heartAttackMatch[1].trim(),
-      amount: amt > 0 ? amt : 20000000,
-      reason: '협심증(I20) 미보장(급성심근경색 한정)으로 순수 심장질환 진단비에서 제외',
+      amount: amt > 0 ? amt : 0,
+      reason: '협심증(I20) 미보장(급성심근경색증 한정)으로 순수 허혈성심장질환 진단비에서 제외',
     });
   }
 
-  // 6. 순수 보장금액 파싱 (문서에 텍스트가 있으면 정규식 추출, 없으면 현실적인 기본값 산출)
-  let cancer = parseAmount(/(?:일반암\s*진단비?|암\s*진단비?)\s*[:：=]?\s*([\d,]+)/i);
-  let brain = parseAmount(/(?:뇌혈관질환\s*진단비?|뇌혈관\s*진단비?)\s*[:：=]?\s*([\d,]+)/i);
-  let heart = parseAmount(/(?:허혈성\s*심장[질환]*\s*진단비?|허혈심장\s*진단비?)\s*[:：=]?\s*([\d,]+)/i);
-  let nonReimbursedCancer = parseAmount(/(?:비급여암[가-힣\s]*치료비?|표적항암[가-힣\s]*치료비?)\s*[:：=]?\s*([\d,]+)/i);
-  let cancerLivingCare = parseAmount(/(?:암[주요]*치료\s*생활비?|암\s*생활자금)\s*[:：=]?\s*([\d,]+)/i);
+  // 6. 엄격한 순수 보장금액 파싱 (문서에 텍스트가 없으면 반드시 0원 유지!)
+  // 6-1. 암진단비 (일반암 전체만 인정, 유사암/남녀특정암/치료/수술 배제)
+  let cancer = 0;
+  const cancerMatch = rawText.match(/(?:일반암\s*진단비?|암\s*진단비?|암\s*진단담보|암\s*진단특약|암\s*진단급여금)\s*[:：=]?\s*([\d,]+)/i);
+  if (cancerMatch && !/(?:유사암|소액암|특정암|남녀|여성|남성|소아|수술|입원|치료|생활|통원)/.test(cancerMatch[0])) {
+    cancer = parseAmount(/(?:일반암\s*진단비?|암\s*진단비?|암\s*진단담보|암\s*진단특약|암\s*진단급여금)\s*[:：=]?\s*([\d,]+)/i);
+  }
+
+  // 6-2. 뇌혈관질환 진단비 (I60~I69 전체 보장만 인정)
+  let brain = 0;
+  const brainMatch = rawText.match(/(?:뇌혈관질환\s*진단비?|뇌혈관\s*진단비?|뇌혈관질환\s*진단담보|뇌혈관질환\s*진단특약)\s*[:：=]?\s*([\d,]+)/i);
+  if (brainMatch && !/(?:뇌졸중|뇌경색|뇌출혈|수술|입원|치료)/.test(brainMatch[0])) {
+    brain = parseAmount(/(?:뇌혈관질환\s*진단비?|뇌혈관\s*진단비?|뇌혈관질환\s*진단담보|뇌혈관질환\s*진단특약)\s*[:：=]?\s*([\d,]+)/i);
+  }
+
+  // 6-3. 허혈성심장질환 진단비 (협심증 포함 전체만 인정)
+  let heart = 0;
+  const heartMatch = rawText.match(/(?:허혈성\s*심장[질환]*\s*진단비?|허혈심장\s*진단비?|허혈성\s*심질환\s*진단비?)\s*[:：=]?\s*([\d,]+)/i);
+  if (heartMatch && !/(?:급성심근경색|수술|치료)/.test(heartMatch[0])) {
+    heart = parseAmount(/(?:허혈성\s*심장[질환]*\s*진단비?|허혈심장\s*진단비?|허혈성\s*심질환\s*진단비?)\s*[:：=]?\s*([\d,]+)/i);
+  }
+
+  // 6-4. 비급여암 주요치료비
+  let nonReimbursedCancer = parseAmount(/(?:비급여암[가-힣\s]*치료비?|암\s*주요치료비?|표적항암[가-힣\s]*치료비?)\s*[:：=]?\s*([\d,]+)/i);
+
+  // 6-5. 암 주요치료 생활비
+  let cancerLivingCare = parseAmount(/(?:암\s*주요치료\s*생활비?|암\s*치료생활비?|암\s*생활자금)\s*[:：=]?\s*([\d,]+)/i);
+
+  // 6-6. 항암 중입자·양성자 치료비
   let heavyParticle = parseAmount(/(?:중입자[가-힣\s]*치료비?|양성자[가-힣\s]*치료비?)\s*[:：=]?\s*([\d,]+)/i);
-  let surgery = parseAmount(/(?:질병\s*상해\s*수술비|1[~-]5종\s*수술비?|종수술비)\s*[:：=]?\s*([\d,]+)/i);
-  let diseaseDisability80 = parseAmount(/(?:질병후유장해|후유장해\s*80%)\s*[:：=]?\s*([\d,]+)/i);
-  let circulatoryCare = parseAmount(/(?:순환계[질환]*\s*치료비?|순환기[질환]*\s*치료비?)\s*[:：=]?\s*([\d,]+)/i);
-  let premium = parseAmount(/(?:월납\s*보험료|합계\s*보험료|납입\s*보험료)\s*[:：=]?\s*([\d,]+)/i);
 
-  // 문서에서 텍스트가 완전히 추출되지 않은 스캔 이미지의 경우 현실적인 기준 보장 적용
-  if (cancer === 0) cancer = 30000000;
-  if (brain === 0 && !strokeMatch) brain = 20000000;
-  if (heart === 0 && !heartAttackMatch) heart = 20000000;
-  if (surgery === 0) surgery = 5000000;
-  if (premium === 0) premium = 65000;
+  // 6-7. 질병후유장해 80% 이상
+  let diseaseDisability80 = parseAmount(/(?:질병.*(?:고도장해|고도후유장해|특정고도장해|80%이상)|질병후유장해\s*\(?80%이상\)?)\s*[:：=]?\s*([\d,]+)/i);
 
-  const indemnity = text.includes('실손') || text.includes('실비') || true;
+  // 6-8. 질병/상해 1~5종 수술비
+  let surgery = parseAmount(/(?:질병.*(?:1[-~]5종|1[-~]7종|1[-~]8종|종수술)|상해.*(?:1[-~]5종|1[-~]7종)|1[-~]5종\s*수술비?)\s*[:：=]?\s*([\d,]+)/i);
+
+  // 6-9. 순환계질환 주요치료비
+  let circulatoryCare = parseAmount(/(?:순환계[질환]*\s*(?:주요치료비?|치료비?)|심뇌혈관[질환]*\s*주요치료비?|신특정순환계.*주요치료비?)\s*[:：=]?\s*([\d,]+)/i);
+
+  // 6-10. 월 보험료
+  let premium = parseAmount(/(?:월납\s*보험료|합계\s*보험료|납입\s*보험료|월보험료)\s*[:：=]?\s*([\d,]+)/i);
+
+  // 실손의료비 (실제로 증권 텍스트에 포함되어 있을 때만 true)
+  const indemnity = text.includes('실손') || text.includes('실비');
 
   return {
     id: `policy-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     insurerName: insurer,
     policyName: policy,
+    insuredName: detectedName,
     insuredAge: finalAge,
     insuredGender: detectedGender,
     isGenderUnknown,
@@ -281,19 +324,19 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
       cancer,
       brain,
       heart,
-      nonReimbursedCancer: nonReimbursedCancer || 20000000,
-      cancerLivingCare: cancerLivingCare || 10000000,
-      heavyParticle: heavyParticle || 30000000,
-      diseaseDisability80: diseaseDisability80 || 20000000,
-      surgery: surgery || 5000000,
-      circulatoryCare: circulatoryCare || 10000000,
+      nonReimbursedCancer,
+      cancerLivingCare,
+      heavyParticle,
+      diseaseDisability80,
+      surgery,
+      circulatoryCare,
       indemnity,
     },
     documentUrl: fileName,
     excludedLimitedCoverages: excluded,
     limitedCoverageAlert:
       excluded.length > 0
-        ? '남녀특정암, 뇌졸중/뇌경색 등 한정 보장이 감지되어 순수 진단비에서 분리 제외되었습니다.'
+        ? '남녀특정암, 뇌졸중/뇌경색, 급성심근경색 등 한정 보장이 감지되어 순수 진단비에서 분리 제외되었습니다.'
         : undefined,
   };
 }
@@ -347,9 +390,11 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
             id: `policy-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
             insurerName: parsed.insurerName || '가입 보험사',
             policyName: parsed.policyName || file.name.replace(/\.[^/.]+$/, ''),
-            insuredAge: Number(parsed.insuredAge) || 35,
+            insuredName: parsed.insuredName,
+            insuredAge: Number(parsed.insuredAge) && Number(parsed.insuredAge) > 0 ? Number(parsed.insuredAge) : undefined,
             insuredGender: parsed.insuredGender === 'female' ? 'female' : 'male',
-            monthlyPremium: Number(parsed.monthlyPremium) || 50000,
+            isGenderUnknown: !parsed.insuredGender,
+            monthlyPremium: Number(parsed.monthlyPremium) || 0,
             coverageDetails: {
               cancer: Number(parsed.coverageDetails?.cancer) || 0,
               brain: Number(parsed.coverageDetails?.brain) || 0,
@@ -383,7 +428,8 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
 }
 
 /**
- * 여러 개 PDF/이미지 파일 병렬(Concurrent) 최적화 일괄 파싱
+ * 여러 개 PDF/이미지 파일 병렬(Concurrent) 최적화 일괄 파싱 및 피보험자 정보 일괄 동기화
+ * (동시에 여러 증권을 올릴 때 같은 이름/마스킹 이름이라도 한 증권에 나이/성별이 있으면 전체 증권에 일괄 전파)
  */
 export async function parseMultiplePolicyFiles(
   files: File[],
@@ -414,5 +460,24 @@ export async function parseMultiplePolicyFiles(
     }
   }
 
-  return policies;
+  // --- 피보험자 정보(나이, 성별, 이름) 일괄 동기화 알고리즘 ---
+  // 동시에 업로드된 증권 중 단 하나라도 생년월일/나이가 확인되면 모든 증권에 일괄 통일
+  const canonicalAge = policies.find((p) => p.insuredAge && p.insuredAge >= 10 && p.insuredAge <= 95)?.insuredAge;
+
+  // 단 하나라도 성별이 확실하게 확인된 증권 찾기
+  const confirmedGenderPolicy = policies.find((p) => p.insuredGender && p.isGenderUnknown === false);
+  const canonicalGender = confirmedGenderPolicy?.insuredGender;
+  const canonicalGenderInferredFrom = confirmedGenderPolicy?.genderInferredFrom || '동일 피보험자 증권 동기화';
+
+  // 단 하나라도 피보험자 이름이 감지된 경우
+  const canonicalName = policies.find((p) => p.insuredName && p.insuredName.trim().length > 1)?.insuredName;
+
+  return policies.map((p) => ({
+    ...p,
+    insuredAge: p.insuredAge ?? canonicalAge ?? 38,
+    insuredGender: canonicalGender ? canonicalGender : (p.insuredGender || 'male'),
+    isGenderUnknown: canonicalGender ? false : p.isGenderUnknown,
+    genderInferredFrom: canonicalGender ? canonicalGenderInferredFrom : p.genderInferredFrom,
+    insuredName: p.insuredName || canonicalName,
+  }));
 }
