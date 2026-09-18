@@ -14,10 +14,15 @@ export default function Home() {
   const [report, setReport] = useState<DiagnosisReport | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isSavedModalOpen, setIsSavedModalOpen] = useState<boolean>(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
   // 모바일 뒤로가기(popstate) 제어: 사이트 이탈 방지
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
+      if (isSettingsOpen) {
+        setIsSettingsOpen(false);
+        return;
+      }
       if (isSavedModalOpen) {
         setIsSavedModalOpen(false);
         return;
@@ -30,7 +35,7 @@ export default function Home() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [report, isSavedModalOpen]);
+  }, [report, isSavedModalOpen, isSettingsOpen]);
 
   const handleFormComplete = async (profile: UserProfile, policies: ExistingPolicy[]) => {
     const generatedReport = diagnoseInsurance(profile, policies);
@@ -98,45 +103,23 @@ export default function Home() {
     window.history.pushState({ view: 'report' }, '');
   };
 
-  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-
   return (
     <div className="w-full flex justify-center items-start min-h-screen relative">
-      {/* 우측 상단 플로팅 보관함 & 설정 버튼 모음 */}
-      <div className="fixed top-3 right-3 sm:right-6 z-40 flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => {
-            setIsSettingsOpen(true);
-            window.history.pushState({ modal: 'settings' }, '');
-          }}
-          className="p-1.5 bg-white/95 hover:bg-white text-slate-600 hover:text-slate-900 rounded-full border border-slate-200 shadow-md transition-all backdrop-blur-xs"
-          title="Gemini API 키 설정"
-        >
-          <span className="text-xs">⚙️</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setIsSavedModalOpen(true);
-            window.history.pushState({ modal: 'saved' }, '');
-          }}
-          className="px-3 py-1.5 bg-white/95 hover:bg-white text-slate-700 hover:text-blue-600 font-bold text-xs rounded-full border border-slate-200 shadow-md flex items-center gap-1.5 transition-all backdrop-blur-xs"
-        >
-          <Bookmark className="w-3.5 h-3.5 text-blue-600" />
-          <span>보관함</span>
-        </button>
-      </div>
-
       {/* 진단 결과 뷰 또는 입력 폼 */}
       {report && userProfile ? (
         <DiagnosisReportView
           report={report}
           profile={userProfile}
           onReset={handleReset}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenSaved={() => setIsSavedModalOpen(true)}
         />
       ) : (
-        <MultiStepForm onComplete={handleFormComplete} />
+        <MultiStepForm
+          onComplete={handleFormComplete}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenSaved={() => setIsSavedModalOpen(true)}
+        />
       )}
 
       {/* 가족별 진단 결과 보관함 모달 */}
