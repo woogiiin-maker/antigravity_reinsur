@@ -1,99 +1,178 @@
 export type Gender = 'male' | 'female';
 export type TargetGender = 'male' | 'female' | 'all';
 
-// 엄격한 순수 전체 보장 9대 핵심 항목 + 실손
+// 보장 대분류 (2번 그림 기준)
+export type CoverageGroup = '암' | '뇌,심장' | '기타';
+
+// 2번 그림 기준 12대 핵심 보장 항목 + 실손
 export type CoverageKey =
-  | 'cancer'
-  | 'brain'
-  | 'heart'
-  | 'nonReimbursedCancer'
-  | 'cancerLivingCare'
-  | 'heavyParticle'
-  | 'diseaseDisability80'
-  | 'surgery'
-  | 'circulatoryCare'
-  | 'indemnity';
+  | 'cancer'                // 일반암 진단비
+  | 'similarCancer'         // 유사암 진단비
+  | 'nonReimbursedCancer'   // 비급여암 주요치료비
+  | 'cancerLivingCare'      // 암주요치료 생활비
+  | 'heavyParticle'         // 항암중입자 방사선치료비
+  | 'brain'                 // 뇌혈관 진단비
+  | 'heart'                 // 허혈성심장질환 진단비
+  | 'injuryDisability'      // 상해 후유장해 (3% 이상)
+  | 'diseaseDisability80'   // 질병 후유장해 (80% 이상)
+  | 'injurySurgery'         // 상해 수술비 (1~5종)
+  | 'diseaseSurgery'        // 질병 수술비 (1~5종)
+  | 'surgery'               // 기본/통합 수술비 (하위호환)
+  | 'circulatoryCare'       // 순환계질환 주요치료비
+  | 'indemnity';            // 실손의료비 (보조)
 
 export interface CoverageItem {
   key: CoverageKey;
+  group: CoverageGroup;
   label: string;
   unit: string;
   description: string;
   ruleNote: string;
+  standardAmount: number; // 2번 그림 기준 표준 권장 금액
 }
 
-export const COVERAGE_CATEGORIES: Record<CoverageKey, { label: string; unit: string; description: string; ruleNote: string }> = {
+export const COVERAGE_CATEGORIES: Record<CoverageKey, {
+  group: CoverageGroup;
+  label: string;
+  unit: string;
+  description: string;
+  ruleNote: string;
+  standardAmount: number;
+}> = {
+  // [1] 암 보장군
   cancer: {
-    label: '암 진단비',
+    group: '암',
+    label: '일반암 진단비',
     unit: '원',
     description: '어떤 암이든 확정 진단 시 100% 지급',
     ruleNote: '순수 일반암만 인정 (남녀특정암, 여성특정암, 3대/5대암, 소액암, 유사암 제외)',
+    standardAmount: 40_000_000,
   },
+  similarCancer: {
+    group: '암',
+    label: '유사암 진단비',
+    unit: '원',
+    description: '갑상선암, 기타피부암, 제자리암, 경계성종양 확정 진단비',
+    ruleNote: '4대 유사암(갑상선암, 기타피부암, 제자리암, 경계성종양) 진단비 인정',
+    standardAmount: 10_000_000,
+  },
+  nonReimbursedCancer: {
+    group: '암',
+    label: '비급여암 주요치료비',
+    unit: '원',
+    description: '표적항암제, 면역항암제, 로봇수술 등 최신 비급여 암치료비 (연간 1회한)',
+    ruleNote: '비급여 항암 및 치료비 전체 인정 (특정 병원/부위 한정 제외)',
+    standardAmount: 20_000_000,
+  },
+  cancerLivingCare: {
+    group: '암',
+    label: '암주요치료 생활비',
+    unit: '원',
+    description: '암 치료 및 투병 기간 중 소득 공백을 보전하는 생활자금 (연간 1회한)',
+    ruleNote: '암 치료 기간 계속 지급 생활자금 인정',
+    standardAmount: 20_000_000,
+  },
+  heavyParticle: {
+    group: '암',
+    label: '항암중입자 방사선치료비',
+    unit: '원',
+    description: '중입자 가속 및 양성자 방사선 치료비',
+    ruleNote: '중입자/양성자 방사선 치료비 전체 인정',
+    standardAmount: 50_000_000,
+  },
+
+  // [2] 뇌, 심장 보장군
   brain: {
-    label: '뇌혈관질환 진단비',
+    group: '뇌,심장',
+    label: '뇌혈관 진단비',
     unit: '원',
     description: '뇌출혈, 뇌경색 등 뇌혈관 질환 전체(I60~I69) 보장',
     ruleNote: '뇌혈관 전체만 인정 (뇌졸중, 뇌경색, 뇌출혈 한정 제외)',
+    standardAmount: 20_000_000,
   },
   heart: {
+    group: '뇌,심장',
     label: '허혈성심장질환 진단비',
     unit: '원',
     description: '협심증(I20), 급성심근경색(I21) 등 허혈성 심장질환 전체 보장',
     ruleNote: '협심증 포함 허혈성 전체만 인정 (급성심근경색증 한정 제외)',
+    standardAmount: 20_000_000,
   },
-  nonReimbursedCancer: {
-    label: '비급여암 주요치료비',
+
+  // [3] 기타 핵심 보장군
+  injuryDisability: {
+    group: '기타',
+    label: '상해 후유장해',
     unit: '원',
-    description: '표적항암제, 면역항암제, 로봇수술 등 최신 비급여 암치료비',
-    ruleNote: '비급여 항암 및 치료비 전체 인정 (특정 병원/부위 한정 제외)',
-  },
-  cancerLivingCare: {
-    label: '암 주요치료 생활비',
-    unit: '원',
-    description: '암 치료 및 투병 기간 중 소득 공백을 보전하는 생활자금',
-    ruleNote: '암 치료 기간 계속 지급 생활자금 인정',
-  },
-  heavyParticle: {
-    label: '항암 중입자·양성자 치료비',
-    unit: '원',
-    description: '꿈의 암 치료기인 중입자 가속 및 양성자 방사선 치료비',
-    ruleNote: '중입자/양성자 방사선 치료비 전체 인정',
+    description: '상해로 인한 신체 장해 발생 시 지급 (3% 이상)',
+    ruleNote: '상해 후유장해 3% 이상 전체 인정',
+    standardAmount: 50_000_000,
   },
   diseaseDisability80: {
-    label: '질병후유장해 (80% 이상)',
+    group: '기타',
+    label: '질병 후유장해',
     unit: '원',
     description: '질병으로 인한 80% 이상 중증 후유장해 발생 시 일시금/연금 지급',
-    ruleNote: '신체 전반 80% 이상 중증 질병후유장해 전체 인정',
+    ruleNote: '질병 80% 이상 고도후유장해 인정',
+    standardAmount: 20_000_000,
   },
-  surgery: {
-    label: '질병·상해 종수술비',
+  injurySurgery: {
+    group: '기타',
+    label: '상해 수술비',
     unit: '원',
-    description: '질병 및 상해 1~5종 관혈/비관혈 수술 회당 반복 지급',
-    ruleNote: '질병/상해 1~5종 전체 수술비 인정 (특정질환 수술비 제외)',
+    description: '상해 1~5종 수술 회당 지급 (20만~1,000만원)',
+    ruleNote: '상해 1~5종 전체 수술비 인정 (특정상해 한정 제외)',
+    standardAmount: 500_000,
+  },
+  diseaseSurgery: {
+    group: '기타',
+    label: '질병 수술비',
+    unit: '원',
+    description: '질병 1~5종 수술 회당 지급 (20만~500만원)',
+    ruleNote: '질병 1~5종 전체 수술비 인정 (특정질병 한정 제외)',
+    standardAmount: 300_000,
   },
   circulatoryCare: {
+    group: '기타',
     label: '순환계질환 주요치료비',
     unit: '원',
-    description: '뇌·심장 순환계 질환 관상동맥스텐트, 혈전용해치료비 등 주요 치료비',
+    description: '뇌·심장 혈전용해치료, 관상동맥스텐트 등 순환계 치료비',
     ruleNote: '순환계 주요 치료비 전체 인정',
+    standardAmount: 10_000_000,
   },
+  surgery: {
+    group: '기타',
+    label: '종수술비 (질병/상해)',
+    unit: '원',
+    description: '질병 및 상해 1~5종 관혈/비관혈 수술비 회당 반복 지급',
+    ruleNote: '질병/상해 1~5종 전체 수술비 인정 (특정질환 수술비 제외)',
+    standardAmount: 5_000_000,
+  },
+
+  // 보조 실손
   indemnity: {
+    group: '기타',
     label: '실손의료비',
     unit: '보장여부',
     description: '병원 입원 및 통원 치료비 실손 보상',
     ruleNote: '표준 실손의료비 가입 여부',
+    standardAmount: 50_000_000,
   },
 };
 
 export interface CoverageDetails {
   cancer: number;
-  brain: number;
-  heart: number;
+  similarCancer?: number;
   nonReimbursedCancer?: number;
   cancerLivingCare?: number;
   heavyParticle?: number;
+  brain: number;
+  heart: number;
+  injuryDisability?: number;
   diseaseDisability80?: number;
-  surgery: number;
+  injurySurgery?: number;
+  diseaseSurgery?: number;
+  surgery: number; // 하위 호환용 (기본 수술비)
   circulatoryCare?: number;
   indemnity: boolean; // 실비 가입 여부
 }

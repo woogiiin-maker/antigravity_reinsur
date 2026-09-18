@@ -22,58 +22,63 @@ export function getAgeGroup(age: number): '20s' | '30_40s' | '50s_plus' {
 }
 
 /**
- * 9대 핵심 보장 항목별 표준 권장 보장금액 산출
+/**
+ * 2번 그림 기준 12대 핵심 보장 항목별 표준 권장 보장금액 산출
  */
 export function calculateRecommendedCoverages(profile: UserProfile): Record<CoverageKey, number> {
-  const ageGroup = getAgeGroup(profile.age);
-
-  // 연령대 기본 표준 권장 보장금액 (원 단위)
+  // 2026년 최신 기준 2번 그림 표준 권장 금액표 (원 단위)
   const base: Record<CoverageKey, number> = {
-    cancer: ageGroup === '20s' ? 30_000_000 : ageGroup === '30_40s' ? 50_000_000 : 35_000_000,
-    brain: ageGroup === '20s' ? 20_000_000 : ageGroup === '30_40s' ? 30_000_000 : 25_000_000,
-    heart: ageGroup === '20s' ? 20_000_000 : ageGroup === '30_40s' ? 30_000_000 : 25_000_000,
-    nonReimbursedCancer: ageGroup === '20s' ? 20_000_000 : 30_000_000,
-    cancerLivingCare: 20_000_000,
-    heavyParticle: 30_000_000,
-    diseaseDisability80: ageGroup === '50s_plus' ? 30_000_000 : 20_000_000,
-    surgery: ageGroup === '20s' ? 5_000_000 : ageGroup === '30_40s' ? 15_000_000 : 10_000_000,
-    circulatoryCare: 15_000_000,
-    indemnity: 50_000_000, // 실손 기준
+    cancer: 40_000_000,            // 일반암 진단비: 4,000만
+    similarCancer: 10_000_000,     // 유사암 진단비: 1,000만
+    nonReimbursedCancer: 20_000_000, // 비급여암 주요치료비: 2,000만 (연간 1회)
+    cancerLivingCare: 20_000_000,  // 암주요치료 생활비: 2,000만 (연간 1회)
+    heavyParticle: 50_000_000,     // 항암중입자 방사선치료비: 5,000만
+    brain: 20_000_000,             // 뇌혈관 진단비: 2,000만
+    heart: 20_000_000,             // 허혈성심장질환 진단비: 2,000만
+    injuryDisability: 50_000_000,  // 상해 후유장해: 5,000만 (3% 이상)
+    diseaseDisability80: 20_000_000, // 질병 후유장해: 2,000만 (80% 이상)
+    injurySurgery: 500_000,        // 상해 수술비: 50만 (1~5종 1,000만)
+    diseaseSurgery: 300_000,       // 질병 수술비: 30만 (1~5종 500만)
+    circulatoryCare: 10_000_000,   // 순환계질환 주요치료비: 1,000만
+    surgery: 5_000_000,            // 종수술비 (하위호환)
+    indemnity: 50_000_000,         // 실손의료비
   };
 
   // 가족력 가중치 적용
   const history = profile.familyHistory || [];
 
   if (history.includes('cancer')) {
-    base.cancer = Math.round(base.cancer * 1.5);
-    base.nonReimbursedCancer = Math.round(base.nonReimbursedCancer * 1.3);
+    base.cancer = Math.round(base.cancer * 1.25);
+    base.nonReimbursedCancer = Math.round(base.nonReimbursedCancer * 1.25);
   }
   if (history.includes('brain') || history.includes('hypertension')) {
-    const factor = history.includes('brain') ? 1.5 : 1.25;
-    base.brain = Math.round(base.brain * factor);
-    base.circulatoryCare = Math.round(base.circulatoryCare * factor);
+    base.brain = Math.round(base.brain * 1.25);
+    base.circulatoryCare = Math.round(base.circulatoryCare * 1.25);
   }
   if (history.includes('heart') || history.includes('diabetes')) {
-    const factor = history.includes('heart') ? 1.5 : 1.25;
-    base.heart = Math.round(base.heart * factor);
-    base.circulatoryCare = Math.round(base.circulatoryCare * factor);
+    base.heart = Math.round(base.heart * 1.25);
+    base.circulatoryCare = Math.round(base.circulatoryCare * 1.25);
   }
 
   return base;
 }
 
 /**
- * 기존 가입 보험 9대 핵심 보장 합산
+ * 기존 가입 보험 12대 핵심 보장 합산
  */
 export function aggregateExistingCoverages(policies: ExistingPolicy[]): CoverageDetails {
   const total: CoverageDetails = {
     cancer: 0,
-    brain: 0,
-    heart: 0,
+    similarCancer: 0,
     nonReimbursedCancer: 0,
     cancerLivingCare: 0,
     heavyParticle: 0,
+    brain: 0,
+    heart: 0,
+    injuryDisability: 0,
     diseaseDisability80: 0,
+    injurySurgery: 0,
+    diseaseSurgery: 0,
     surgery: 0,
     circulatoryCare: 0,
     indemnity: false,
@@ -82,13 +87,21 @@ export function aggregateExistingCoverages(policies: ExistingPolicy[]): Coverage
   for (const p of policies) {
     if (!p.coverageDetails) continue;
     total.cancer += p.coverageDetails.cancer || 0;
-    total.brain += p.coverageDetails.brain || 0;
-    total.heart += p.coverageDetails.heart || 0;
+    total.similarCancer = (total.similarCancer || 0) + (p.coverageDetails.similarCancer || 0);
     total.nonReimbursedCancer = (total.nonReimbursedCancer || 0) + (p.coverageDetails.nonReimbursedCancer || 0);
     total.cancerLivingCare = (total.cancerLivingCare || 0) + (p.coverageDetails.cancerLivingCare || 0);
     total.heavyParticle = (total.heavyParticle || 0) + (p.coverageDetails.heavyParticle || 0);
+    total.brain += p.coverageDetails.brain || 0;
+    total.heart += p.coverageDetails.heart || 0;
+    total.injuryDisability = (total.injuryDisability || 0) + (p.coverageDetails.injuryDisability || 0);
     total.diseaseDisability80 = (total.diseaseDisability80 || 0) + (p.coverageDetails.diseaseDisability80 || 0);
-    total.surgery += p.coverageDetails.surgery || 0;
+
+    const injurySurg = p.coverageDetails.injurySurgery !== undefined ? p.coverageDetails.injurySurgery : (p.coverageDetails.surgery || 0);
+    const diseaseSurg = p.coverageDetails.diseaseSurgery !== undefined ? p.coverageDetails.diseaseSurgery : (p.coverageDetails.surgery || 0);
+    total.injurySurgery = (total.injurySurgery || 0) + injurySurg;
+    total.diseaseSurgery = (total.diseaseSurgery || 0) + diseaseSurg;
+    total.surgery = (total.surgery || 0) + (p.coverageDetails.surgery || 0);
+
     total.circulatoryCare = (total.circulatoryCare || 0) + (p.coverageDetails.circulatoryCare || 0);
     if (p.coverageDetails.indemnity) {
       total.indemnity = true;
@@ -114,35 +127,42 @@ export function diagnoseInsurance(
   const allExcludedCoverages = policies.flatMap((p) => p.excludedLimitedCoverages || []);
   const hasLimitedCoverageRisk = allExcludedCoverages.length > 0;
 
-  // 항목별 가중치 (총 100%)
+  // 12대 핵심 항목별 가중치 (총 100%)
   const weights: Record<CoverageKey, number> = {
-    cancer: 0.20,
-    brain: 0.18,
-    heart: 0.18,
+    cancer: 0.16,
+    similarCancer: 0.08,
     nonReimbursedCancer: 0.08,
-    cancerLivingCare: 0.06,
+    cancerLivingCare: 0.08,
     heavyParticle: 0.06,
+    brain: 0.14,
+    heart: 0.14,
+    injuryDisability: 0.06,
     diseaseDisability80: 0.06,
-    surgery: 0.08,
-    circulatoryCare: 0.05,
-    indemnity: 0.05,
+    injurySurgery: 0.05,
+    diseaseSurgery: 0.05,
+    circulatoryCare: 0.04,
+    surgery: 0.00,
+    indemnity: 0.00,
   };
 
   const coverageGaps: CoverageGap[] = [];
   const priorityItems: string[] = [];
   const adviceTags: string[] = [];
 
+  // 2번 그림 기준 12개 핵심 보장 항목
   const keys: CoverageKey[] = [
     'cancer',
-    'brain',
-    'heart',
+    'similarCancer',
     'nonReimbursedCancer',
     'cancerLivingCare',
     'heavyParticle',
+    'brain',
+    'heart',
+    'injuryDisability',
     'diseaseDisability80',
-    'surgery',
+    'injurySurgery',
+    'diseaseSurgery',
     'circulatoryCare',
-    'indemnity',
   ];
 
   let weightedScoreSum = 0;
@@ -156,6 +176,12 @@ export function diagnoseInsurance(
     if (key === 'indemnity') {
       curAmt = current.indemnity ? recAmt : 0;
       rate = current.indemnity ? 100 : 0;
+    } else if (key === 'injurySurgery') {
+      curAmt = current.injurySurgery !== undefined ? current.injurySurgery : (current.surgery || 0);
+      rate = recAmt > 0 ? Math.min(150, Math.round((curAmt / recAmt) * 100)) : 100;
+    } else if (key === 'diseaseSurgery') {
+      curAmt = current.diseaseSurgery !== undefined ? current.diseaseSurgery : (current.surgery || 0);
+      rate = recAmt > 0 ? Math.min(150, Math.round((curAmt / recAmt) * 100)) : 100;
     } else {
       curAmt = (current as any)[key] || 0;
       rate = recAmt > 0 ? Math.min(150, Math.round((curAmt / recAmt) * 100)) : 100;
@@ -182,7 +208,14 @@ export function diagnoseInsurance(
     const contributions: PolicyContribution[] = [];
     for (const p of policies) {
       if (!p.coverageDetails) continue;
-      const amt = (p.coverageDetails as any)[key] || 0;
+      let amt = 0;
+      if (key === 'injurySurgery') {
+        amt = p.coverageDetails.injurySurgery !== undefined ? p.coverageDetails.injurySurgery : (p.coverageDetails.surgery || 0);
+      } else if (key === 'diseaseSurgery') {
+        amt = p.coverageDetails.diseaseSurgery !== undefined ? p.coverageDetails.diseaseSurgery : (p.coverageDetails.surgery || 0);
+      } else {
+        amt = (p.coverageDetails as any)[key] || 0;
+      }
       const policyMatched = p.matchedRiders?.[key] || [];
 
       if (key === 'indemnity' && p.coverageDetails.indemnity) {
@@ -228,10 +261,11 @@ export function diagnoseInsurance(
     // 해당 카테고리에 속하는 제외된 한정보장 필터링
     const excludedForThisCategory = allExcludedCoverages.filter((ex) => {
       const name = ex.name.toLowerCase();
-      if (key === 'cancer') return name.includes('암');
+      if (key === 'cancer') return name.includes('암') && !name.includes('유사');
+      if (key === 'similarCancer') return name.includes('유사') || name.includes('소액');
       if (key === 'brain') return name.includes('뇌') || name.includes('졸중');
       if (key === 'heart') return name.includes('심') || name.includes('경색');
-      if (key === 'surgery') return name.includes('수술');
+      if (key === 'injurySurgery' || key === 'diseaseSurgery') return name.includes('수술');
       return false;
     });
 

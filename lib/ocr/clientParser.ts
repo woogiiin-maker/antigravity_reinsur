@@ -342,7 +342,8 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
     matchedRiders.diseaseDisability80 = [{ riderName: '질병 80% 이상 고도후유장해 담보', amount: diseaseDisability80, note: '80% 이상 중증 질병후유장해 발생 시 지급' }];
   }
   if (surgery > 0) {
-    matchedRiders.surgery = [{ riderName: '질병·상해 종수술비 (1~5종) 담보', amount: surgery, note: '1~5종 관혈/비관혈 수술비 회당 차등 지급' }];
+    matchedRiders.injurySurgery = [{ riderName: '상해 수술비 (1~5종) 담보', amount: surgery, note: '1~5종 관혈/비관혈 상해 수술비 회당 차등 지급' }];
+    matchedRiders.diseaseSurgery = [{ riderName: '질병 수술비 (1~5종) 담보', amount: surgery, note: '1~5종 관혈/비관혈 질병 수술비 회당 차등 지급' }];
   }
   if (circulatoryCare > 0) {
     matchedRiders.circulatoryCare = [{ riderName: '순환계질환 주요치료비 (혈전용해 등) 담보', amount: circulatoryCare, note: '뇌·심장 순환계 혈전용해 및 주요 치료비 보장' }];
@@ -363,12 +364,16 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
     monthlyPremium: premium,
     coverageDetails: {
       cancer,
-      brain,
-      heart,
+      similarCancer: 0,
       nonReimbursedCancer,
       cancerLivingCare,
       heavyParticle,
+      brain,
+      heart,
+      injuryDisability: 0,
       diseaseDisability80,
+      injurySurgery: surgery,
+      diseaseSurgery: surgery,
       surgery,
       circulatoryCare,
       indemnity,
@@ -450,12 +455,18 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
               monthlyPremium: Number(parsed.monthlyPremium) || 0,
               coverageDetails: {
                 cancer: Number(parsed.coverageDetails?.cancer) || 0,
-                brain: Number(parsed.coverageDetails?.brain) || 0,
-                heart: Number(parsed.coverageDetails?.heart) || 0,
+                similarCancer: Number(parsed.coverageDetails?.similarCancer) || 0,
                 nonReimbursedCancer: Number(parsed.coverageDetails?.nonReimbursedCancer) || 0,
                 cancerLivingCare: Number(parsed.coverageDetails?.cancerLivingCare) || 0,
                 heavyParticle: Number(parsed.coverageDetails?.heavyParticle) || 0,
+                brain: Number(parsed.coverageDetails?.brain) || 0,
+                heart: Number(parsed.coverageDetails?.heart) || 0,
+                injuryDisability: Number(parsed.coverageDetails?.injuryDisability) || 0,
                 diseaseDisability80: Number(parsed.coverageDetails?.diseaseDisability80) || 0,
+                injurySurgery:
+                  Number(parsed.coverageDetails?.injurySurgery) || Number(parsed.coverageDetails?.surgery) || 0,
+                diseaseSurgery:
+                  Number(parsed.coverageDetails?.diseaseSurgery) || Number(parsed.coverageDetails?.surgery) || 0,
                 surgery: Number(parsed.coverageDetails?.surgery) || 0,
                 circulatoryCare: Number(parsed.coverageDetails?.circulatoryCare) || 0,
                 indemnity: Boolean(parsed.coverageDetails?.indemnity),
@@ -498,13 +509,17 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
       monthlyPremium: 56880,
       coverageDetails: {
         cancer: 0, // 일반암 진단비 없음
-        brain: 0, // 뇌혈관질환 진단비 없음
-        heart: 0, // 허혈성심장질환 진단비 없음
+        similarCancer: 0,
         nonReimbursedCancer: 20000000, // 표적항암약물허가치료 2,000만원
         cancerLivingCare: 0,
         heavyParticle: 0,
+        brain: 0, // 뇌혈관질환 진단비 없음
+        heart: 0, // 허혈성심장질환 진단비 없음
+        injuryDisability: 0,
         diseaseDisability80: 0,
-        surgery: 1000000, // 암수술 100만원
+        injurySurgery: 0,
+        diseaseSurgery: 1000000, // 암수술 100만원
+        surgery: 1000000,
         circulatoryCare: 10000000, // 혈전용해치료비 뇌/심장 각 500만원
         indemnity: false,
       },
@@ -552,7 +567,7 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
             note: '급성 심근경색 발생 시 혈전용해제 투약 치료비 보장',
           },
         ],
-        surgery: [
+        diseaseSurgery: [
           {
             riderName: '암수술(특별약관)담보',
             amount: 1000000,
@@ -581,13 +596,17 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
       monthlyPremium: 49400,
       coverageDetails: {
         cancer: 0, // 여성특정암 등 한정보장으로 순수 일반암 제외 (0원)
-        brain: 0,
-        heart: 0,
+        similarCancer: 5000000,
         nonReimbursedCancer: 0,
         cancerLivingCare: 0,
         heavyParticle: 0,
+        brain: 0,
+        heart: 0,
+        injuryDisability: 0,
         diseaseDisability80: 0,
-        surgery: 5000000, // 부인과/여성질환 수술보장
+        injurySurgery: 0,
+        diseaseSurgery: 5000000, // 부인과/여성질환 수술보장
+        surgery: 5000000,
         circulatoryCare: 0,
         indemnity: false,
       },
@@ -601,7 +620,14 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
       ],
       limitedCoverageAlert: '여성특정암 등 특정 부위 한정보장이 감지되어 순수 진단비에서 분리되었습니다.',
       matchedRiders: {
-        surgery: [
+        similarCancer: [
+          {
+            riderName: '상피내암·경계성종양 등 유사암 진단특약',
+            amount: 5000000,
+            note: '유사암 진단 시 500만원 보장',
+          },
+        ],
+        diseaseSurgery: [
           {
             riderName: '부인과질환 및 여성특정질환 수술보장특약',
             amount: 5000000,
@@ -630,13 +656,18 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
       monthlyPremium: 134240,
       coverageDetails: {
         cancer: 0, // 순수 일반암 진단비 없음 (CI 중대한질병 한정)
-        brain: 0, // 순수 뇌혈관 없음 (CI 중대한뇌졸중 한정)
-        heart: 0, // 순수 허혈성 없음 (CI 중대한급성심근경색 한정)
+        similarCancer: 0,
         nonReimbursedCancer: 0,
         cancerLivingCare: 0,
         heavyParticle: 0,
+        brain: 0, // 순수 뇌혈관 없음 (CI 중대한뇌졸중 한정)
+        heart: 0, // 순수 허혈성 없음 (CI 중대한급성심근경색 한정)
+        injuryDisability: 0,
         diseaseDisability80: 0,
-        surgery: 14000000, // 무파워수술특약 1~5종 1,400만원
+        // 1번 그림: 무파워수술보장특약 1종 14만원 ~ 5종 700만원 (최대 700만원)
+        injurySurgery: 7000000,
+        diseaseSurgery: 7000000,
+        surgery: 7000000,
         circulatoryCare: 0,
         indemnity: false,
       },
@@ -650,11 +681,18 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
       ],
       limitedCoverageAlert: 'CI(중대한 질병) 한정 특약이 감지되어 순수 진단비에서 분리되었습니다.',
       matchedRiders: {
-        surgery: [
+        injurySurgery: [
           {
-            riderName: '무파워수술특약 (1~5종 질병/상해)',
-            amount: 14000000,
-            note: '질병 및 상해 1~5종 수술 시 종류별 차등 지급 (최대 1,400만원)',
+            riderName: '무파워수술보장특약 (1종 14만원 ~ 5종 700만원)',
+            amount: 7000000,
+            note: '약관에서 정한 상해 수술 시 1종 14만원 ~ 5종 700만원 차등 지급',
+          },
+        ],
+        diseaseSurgery: [
+          {
+            riderName: '무파워수술보장특약 (1종 14만원 ~ 5종 700만원)',
+            amount: 7000000,
+            note: '약관에서 정한 질병 수술 시 1종 14만원 ~ 5종 700만원 차등 지급',
           },
           {
             riderName: '중대한수술특약 (관상동맥우회술, 대동맥류 등)',
@@ -687,12 +725,16 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
       monthlyPremium: 64000,
       coverageDetails: {
         cancer: 0, // 일반암 진단비 없음 (0원!)
-        brain: 0, // 뇌혈관질환 진단비 없음
-        heart: 0, // 허혈성심장질환 진단비 없음
+        similarCancer: 0,
         nonReimbursedCancer: 0,
         cancerLivingCare: 0,
         heavyParticle: 0,
-        diseaseDisability80: 30000000, // 질병 80% 이상 후유장해 3,000만원
+        brain: 0, // 뇌혈관질환 진단비 없음
+        heart: 0, // 허혈성심장질환 진단비 없음
+        injuryDisability: 50000000, // 상해 후유장해 5,000만원
+        diseaseDisability80: 20000000, // 질병 80% 이상 후유장해 2,000만원
+        injurySurgery: 0,
+        diseaseSurgery: 0,
         surgery: 0,
         circulatoryCare: 0,
         indemnity: true, // 실손/상해의료비 포함
@@ -701,10 +743,17 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
       excludedLimitedCoverages: [],
       limitedCoverageAlert: '일반암/뇌/심장 진단비가 미가입된 상태입니다.',
       matchedRiders: {
+        injuryDisability: [
+          {
+            riderName: '일반상해후유장해(3%~100%)담보',
+            amount: 50000000,
+            note: '상해로 인한 신체 장해율(3% 이상)에 따라 지급',
+          },
+        ],
         diseaseDisability80: [
           {
             riderName: '질병 80% 이상 고도후유장해담보',
-            amount: 30000000,
+            amount: 20000000,
             note: '질병으로 인한 80% 이상 중증 후유장해 발생 시 지급',
           },
         ],

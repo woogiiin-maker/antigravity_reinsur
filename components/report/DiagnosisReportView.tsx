@@ -42,6 +42,7 @@ import {
   UserProfile,
   ExistingPolicy,
   ProposedComparisonResult,
+  COVERAGE_CATEGORIES,
 } from '@/types/insurance';
 import { compareProposedPolicies } from '@/lib/engine/diagnosis';
 import { parseMultiplePolicyFiles } from '@/lib/ocr/clientParser';
@@ -99,18 +100,22 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
     const sampleProposal: ExistingPolicy = {
       id: `proposed-${Date.now()}`,
       insurerName: '한화손해보험',
-      policyName: '시그니처 여성건강보험 3.0 (보완 제안서)',
-      monthlyPremium: 48000,
+      policyName: 'KB손보 + 현대해상 맞춤 보완 제안서 플랜',
+      monthlyPremium: 43250,
       coverageDetails: {
-        cancer: 50000000,
+        cancer: 40000000,
+        similarCancer: 10000000,
+        nonReimbursedCancer: 20000000,
+        cancerLivingCare: 20000000,
+        heavyParticle: 50000000,
         brain: 20000000,
         heart: 20000000,
-        nonReimbursedCancer: 100000000,
-        cancerLivingCare: 10000000,
-        heavyParticle: 30000000,
+        injuryDisability: 50000000,
+        diseaseDisability80: 20000000,
+        injurySurgery: 500000,
+        diseaseSurgery: 300000,
         surgery: 5000000,
-        diseaseDisability80: 50000000,
-        circulatoryCare: 20000000,
+        circulatoryCare: 10000000,
         indemnity: false,
       },
       documentUrl: '제안서 견적',
@@ -123,15 +128,18 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
       ],
       limitedCoverageAlert: '부위 한정 특약이 자동 필터링되었습니다.',
       matchedRiders: {
-        cancer: [{ riderName: '통합일반암진단비 (모든 암 100%)', amount: 50000000, note: '원발암/전이암 포함 순수 일반암 보장' }],
-        brain: [{ riderName: '뇌혈관질환진단비 (I60~I69 전체)', amount: 20000000, note: '뇌출혈, 뇌경색 등 뇌혈관 전 질환 보장' }],
-        heart: [{ riderName: '허혈성심장질환진단비', amount: 20000000, note: '협심증 및 급성심근경색증 전액 보장' }],
-        nonReimbursedCancer: [{ riderName: '비급여암 주요치료비(연간 1회한, 5년간)', amount: 100000000, note: '비급여 표적/면역항암제 및 수술비 실손 보상' }],
-        cancerLivingCare: [{ riderName: '암주요치료 생활비 담보', amount: 10000000, note: '암 치료 시 지속 생활자금 지원' }],
-        heavyParticle: [{ riderName: '항암 중입자·양성자 방사선치료비', amount: 30000000, note: '중입자가속기 및 양성자치료비 지급' }],
-        surgery: [{ riderName: '질병·상해 1~5종 종수술비', amount: 5000000, note: '질병 및 상해 수술 시 회당 차등 지급' }],
-        diseaseDisability80: [{ riderName: '질병 80% 이상 고도장해위로금', amount: 50000000, note: '중증 후유장해 발생 시 일시금 지급' }],
-        circulatoryCare: [{ riderName: '순환계질환 주요치료비', amount: 20000000, note: '심혈관/뇌혈관 혈전용해 및 스텐트 삽입술 등 지원' }],
+        cancer: [{ riderName: 'KB 3,000만 + 현대 1,000만 일반암진단비', amount: 40000000, note: '순수 일반암 100% 진단비 완벽 충족' }],
+        similarCancer: [{ riderName: 'KB 800만 + 현대 200만 유사암진단비', amount: 10000000, note: '갑상선암/경계성종양/제자리암 1,000만원 보장' }],
+        nonReimbursedCancer: [{ riderName: '비급여암 주요치료비(연간 1회한, 5년간)', amount: 20000000, note: 'KB손보 비급여 표적/면역항암 치료비' }],
+        cancerLivingCare: [{ riderName: '암주요치료 생활비 담보', amount: 20000000, note: 'KB손보 암 치료 기간 매년 생활비 지급' }],
+        heavyParticle: [{ riderName: '항암 중입자·양성자 방사선치료비', amount: 50000000, note: '중입자가속기 및 양성자치료비 5,000만원 지급' }],
+        brain: [{ riderName: '현대 1,000만 + KB 1,000만 뇌혈관진단비', amount: 20000000, note: '뇌출혈, 뇌경색 등 뇌혈관 질환 전체 보장' }],
+        heart: [{ riderName: '현대 1,000만 + KB 1,000만 허혈성진단비', amount: 20000000, note: '협심증 및 급성심근경색증 전액 보장' }],
+        injuryDisability: [{ riderName: '상해 후유장해(3% 이상)', amount: 50000000, note: '현대해상 3% 이상 상해후유장해' }],
+        diseaseDisability80: [{ riderName: '질병 후유장해(80% 이상)', amount: 20000000, note: 'KB손보 질병특주고도장해' }],
+        injurySurgery: [{ riderName: '현대 1~5종 상해 수술비', amount: 500000, note: '상해 수술비 50만 (1~5종 최대 1,000만원)' }],
+        diseaseSurgery: [{ riderName: '현대 1~5종 질병 수술비', amount: 300000, note: '질병 수술비 30만 (1~5종 최대 500만원)' }],
+        circulatoryCare: [{ riderName: '순환계질환 주요치료비', amount: 10000000, note: 'KB손보 심혈관/뇌혈관 혈전용해 및 스텐트 치료비' }],
       },
     };
 
@@ -169,7 +177,14 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
 
   // 레이더 차트용 데이터 가공
   const radarData = report.coverageGaps.map((g) => ({
-    subject: g.label.replace(' 진단비', '').replace('의료비', ''),
+    subject: g.label
+      .replace(' 진단비', '')
+      .replace(' 주요치료비', '')
+      .replace(' 치료비', '')
+      .replace(' 방사선치료비', '')
+      .replace(' 생활비', '')
+      .replace(' 수술비', '')
+      .replace('의료비', ''),
     충족도: g.fulfillmentRate,
     기준치: 100,
   }));
@@ -359,198 +374,240 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
             </span>
           </div>
 
-          {report.coverageGaps.map((gap) => {
-            const isDeficient = gap.status === 'insufficient';
-            const isExpanded = expandedGapKey === gap.category;
+          {/* 2번 그림 기준 3대 보장 그룹별 목록 (암 / 뇌,심장 / 기타) */}
+          {(
+            [
+              { group: '암', title: '암 보장 (5대 핵심 플랜)', badge: 'bg-rose-50 text-rose-700 border-rose-200' },
+              { group: '뇌,심장', title: '뇌·심장 2대 질환 보장', badge: 'bg-blue-50 text-blue-700 border-blue-200' },
+              { group: '기타', title: '기타 핵심 수술비 및 후유장해 보장', badge: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+            ] as const
+          ).map((grp) => {
+            const groupGaps = report.coverageGaps.filter(
+              (g) => (COVERAGE_CATEGORIES[g.category]?.group || '기타') === grp.group
+            );
+            if (groupGaps.length === 0) return null;
+
             return (
-              <div
-                key={gap.category}
-                className={`border rounded-xl transition-all overflow-hidden ${
-                  isExpanded
-                    ? 'border-blue-400 bg-blue-50/20 shadow-xs ring-1 ring-blue-300'
-                    : 'border-slate-200 hover:border-blue-300 bg-white'
-                }`}
-              >
-                {/* 헤더 행 (클릭 시 펼침 토글) */}
-                <div
-                  onClick={() => setExpandedGapKey(isExpanded ? null : gap.category)}
-                  className="p-3 cursor-pointer select-none space-y-1.5"
-                >
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-bold text-slate-800 flex items-center gap-1">
-                      {gap.label}
-                      <ChevronDown
-                        className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
-                          isExpanded ? 'rotate-180 text-blue-600' : ''
-                        }`}
-                      />
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-slate-400 text-[11px]">
-                        {gap.currentAmount > 0
-                          ? `${(gap.currentAmount / 10000).toLocaleString()}만원`
-                          : '0원'}
-                        {' / '}
-                        <span className="text-slate-600 font-semibold">
-                          {(gap.recommendedAmount / 10000).toLocaleString()}만원
-                        </span>
-                      </span>
-                      <span
-                        className={`text-[11px] font-extrabold px-1.5 py-0.5 rounded ${
-                          isDeficient
-                            ? 'bg-rose-100 text-rose-700'
-                            : 'bg-emerald-100 text-emerald-700'
-                        }`}
-                      >
-                        {gap.fulfillmentRate}%
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${gap.fulfillmentRate}%` }}
-                      transition={{ duration: 0.5 }}
-                      className={`h-full ${isDeficient ? 'bg-rose-500' : 'bg-blue-600'}`}
-                    />
-                  </div>
-
-                  {isDeficient && !isExpanded && (
-                    <p className="text-[10.5px] text-rose-600 font-medium">{gap.note}</p>
-                  )}
+              <div key={grp.group} className="space-y-2 pt-2 first:pt-0">
+                <div className="flex items-center gap-1.5 pb-1 border-b border-slate-100">
+                  <span className={`text-[10.5px] font-black px-2 py-0.5 rounded-md border ${grp.badge}`}>
+                    {grp.group}
+                  </span>
+                  <span className="text-xs font-bold text-slate-800">{grp.title}</span>
                 </div>
 
-                {/* 펼쳐지는 상세 출처 분해표 및 제외 특약 내역 */}
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="px-3 pb-3 pt-1 border-t border-slate-100 text-xs space-y-2.5 bg-slate-50/60"
-                    >
-                      {/* 전체 보장 기준 가이드 */}
-                      {gap.ruleNote && (
-                        <div className="text-[10.5px] text-slate-600 bg-white p-2 rounded-lg border border-slate-200 leading-relaxed">
-                          <span className="font-bold text-blue-700">📌 보장 판정 기준: </span>
-                          {gap.ruleNote}
-                        </div>
-                      )}
-
-                      {/* 어느 보험에 어떤 세부 특약으로 연결되어 보장되는지 기여 증권 분해표 */}
-                      <div>
-                        <span className="text-[11px] font-bold text-slate-700 block mb-1.5">
-                          🏢 가입 증권별 {gap.label} 보장 내역 &amp; 연결 특약:
-                        </span>
-                        {gap.contributions && gap.contributions.length > 0 ? (
-                          <div className="space-y-2">
-                            {gap.contributions.map((c, idx) => (
-                              <div
-                                key={idx}
-                                className="bg-white p-2.5 rounded-xl border border-slate-200 text-[11px] space-y-2 shadow-2xs"
+                <div className="space-y-2">
+                  {groupGaps.map((gap) => {
+                    const isDeficient = gap.status === 'insufficient';
+                    const isExpanded = expandedGapKey === gap.category;
+                    return (
+                      <div
+                        key={gap.category}
+                        className={`border rounded-xl transition-all overflow-hidden ${
+                          isExpanded
+                            ? 'border-blue-400 bg-blue-50/20 shadow-xs ring-1 ring-blue-300'
+                            : 'border-slate-200 hover:border-blue-300 bg-white'
+                        }`}
+                      >
+                        {/* 헤더 행 (클릭 시 펼침 토글) */}
+                        <div
+                          onClick={() => setExpandedGapKey(isExpanded ? null : gap.category)}
+                          className="p-3 cursor-pointer select-none space-y-1.5"
+                        >
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-bold text-slate-800 flex items-center gap-1">
+                              {gap.label}
+                              <ChevronDown
+                                className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                                  isExpanded ? 'rotate-180 text-blue-600' : ''
+                                }`}
+                              />
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-slate-400 text-[11px]">
+                                {gap.currentAmount > 0
+                                  ? `${(gap.currentAmount / 10000).toLocaleString()}만원`
+                                  : '0원'}
+                                {' / '}
+                                <span className="text-slate-600 font-semibold">
+                                  {(gap.recommendedAmount / 10000).toLocaleString()}만원
+                                </span>
+                              </span>
+                              <span
+                                className={`text-[11px] font-extrabold px-1.5 py-0.5 rounded ${
+                                  isDeficient
+                                    ? 'bg-rose-100 text-rose-700'
+                                    : 'bg-emerald-100 text-emerald-700'
+                                }`}
                               >
-                                <div className="flex justify-between items-center">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="font-extrabold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded text-[10px] border border-blue-100">
-                                      {c.insurerName}
-                                    </span>
-                                    <span className="font-bold text-slate-800 text-[11px]">
-                                      {c.policyName}
-                                    </span>
-                                  </div>
-                                  <span className="font-black text-blue-600 text-xs shrink-0 ml-2">
-                                    {(c.amount / 10000).toLocaleString()}만원
-                                  </span>
-                                </div>
+                                {gap.fulfillmentRate}%
+                              </span>
+                            </div>
+                          </div>
 
-                                {/* 연결된 구체적 담보/특약 목록 상세 박스 */}
-                                <div className="p-2 bg-slate-50 rounded-lg border border-slate-200/80 space-y-1.5">
-                                  <div className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
-                                    <span>🔗 연결된 세부 보장 담보:</span>
-                                  </div>
-                                  {c.matchedRiders && c.matchedRiders.length > 0 ? (
-                                    <div className="space-y-1">
-                                      {c.matchedRiders.map((r, rIdx) => (
-                                        <div
-                                          key={rIdx}
-                                          className="bg-white p-1.5 rounded border border-slate-200 text-[10.5px] flex flex-col gap-0.5"
-                                        >
-                                          <div className="flex justify-between items-center">
-                                            <span className="font-bold text-indigo-950 flex items-center gap-1">
-                                              <span className="text-emerald-600">✔</span> {r.riderName}
+                          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${gap.fulfillmentRate}%` }}
+                              transition={{ duration: 0.5 }}
+                              className={`h-full ${isDeficient ? 'bg-rose-500' : 'bg-blue-600'}`}
+                            />
+                          </div>
+
+                          {isDeficient && !isExpanded && (
+                            <p className="text-[10.5px] text-rose-600 font-medium">{gap.note}</p>
+                          )}
+                        </div>
+
+                        {/* 펼쳐지는 상세 출처 분해표 및 제외 특약 내역 */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="px-3 pb-3 pt-1 border-t border-slate-100 text-xs space-y-2.5 bg-slate-50/60"
+                            >
+                              {/* 전체 보장 기준 가이드 */}
+                              {gap.ruleNote && (
+                                <div className="text-[10.5px] text-slate-600 bg-white p-2 rounded-lg border border-slate-200 leading-relaxed">
+                                  <span className="font-bold text-blue-700">📌 보장 판정 기준: </span>
+                                  {gap.ruleNote}
+                                </div>
+                              )}
+
+                              {/* 어느 보험에 어떤 세부 특약으로 연결되어 보장되는지 기여 증권 분해표 */}
+                              <div>
+                                <span className="text-[11px] font-bold text-slate-700 block mb-1.5">
+                                  🏢 가입 증권별 {gap.label} 보장 내역 &amp; 연결 특약:
+                                </span>
+                                {gap.contributions && gap.contributions.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {gap.contributions.map((c, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="bg-white p-2.5 rounded-xl border border-slate-200 text-[11px] space-y-2 shadow-2xs"
+                                      >
+                                        <div className="flex justify-between items-center">
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className="font-extrabold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded text-[10px] border border-blue-100">
+                                              {c.insurerName}
                                             </span>
-                                            <span className="font-extrabold text-indigo-600 text-[10px] shrink-0 ml-2">
-                                              {(r.amount / 10000).toLocaleString()}만원
+                                            <span className="font-bold text-slate-800 text-[11px]">
+                                              {c.policyName}
                                             </span>
                                           </div>
-                                          {r.note && (
-                                            <span className="text-[10px] text-slate-500 pl-3 leading-tight">
-                                              {r.note}
-                                            </span>
+                                          <span className="font-black text-blue-600 text-xs shrink-0 ml-2">
+                                            {(c.amount / 10000).toLocaleString()}만원
+                                          </span>
+                                        </div>
+
+                                        {/* 연결된 구체적 담보/특약 목록 상세 박스 */}
+                                        <div className="p-2 bg-slate-50 rounded-lg border border-slate-200/80 space-y-1.5">
+                                          <div className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
+                                            <span>🔗 연결된 세부 보장 담보:</span>
+                                          </div>
+                                          {c.matchedRiders && c.matchedRiders.length > 0 ? (
+                                            <div className="space-y-1">
+                                              {c.matchedRiders.map((r, rIdx) => (
+                                                <div
+                                                  key={rIdx}
+                                                  className="bg-white p-1.5 rounded border border-slate-200 text-[10.5px] flex flex-col gap-0.5"
+                                                >
+                                                  <div className="flex justify-between items-center">
+                                                    <span className="font-bold text-indigo-950 flex items-center gap-1">
+                                                      <span className="text-emerald-600">✔</span> {r.riderName}
+                                                    </span>
+                                                    <span className="font-extrabold text-indigo-600 text-[10px] shrink-0 ml-2">
+                                                      {(r.amount / 10000).toLocaleString()}만원
+                                                    </span>
+                                                  </div>
+                                                  {r.note && (
+                                                    <span className="text-[10px] text-slate-500 pl-3 leading-tight">
+                                                      {r.note}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          ) : (
+                                            <div className="bg-white p-1.5 rounded border border-slate-200 text-[10.5px]">
+                                              <span className="font-bold text-indigo-950 flex items-center gap-1">
+                                                <span className="text-emerald-600">✔</span> {c.riderName || `${gap.label} 기본 담보`}
+                                              </span>
+                                              {c.riderNote && (
+                                                <span className="block text-[10px] text-slate-500 mt-0.5 pl-3 leading-tight">
+                                                  {c.riderNote}
+                                                </span>
+                                              )}
+                                            </div>
                                           )}
                                         </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div className="bg-white p-1.5 rounded border border-slate-200 text-[10.5px]">
-                                      <span className="font-bold text-indigo-950 flex items-center gap-1">
-                                        <span className="text-emerald-600">✔</span> {c.riderName || `${gap.label} 기본 담보`}
-                                      </span>
-                                      {c.riderNote && (
-                                        <span className="block text-[10px] text-slate-500 mt-0.5 pl-3 leading-tight">
-                                          {c.riderNote}
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-[11px] text-slate-400 text-center">
+                                    가입된 증권 중 순수 {gap.label} 전체를 보장하는 계약이 없습니다.
+                                  </div>
+                                )}
                               </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-[11px] text-slate-400 text-center">
-                            가입된 증권 중 순수 {gap.label} 전체를 보장하는 계약이 없습니다.
-                          </div>
-                        )}
-                      </div>
 
-                      {/* 조건부/한정 특약으로 제외된 내역 (예: 남녀특정암 등) */}
-                      {gap.excludedItems && gap.excludedItems.length > 0 && (
-                        <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg space-y-1.5 text-[11px]">
-                          <span className="font-bold text-rose-800 flex items-center gap-1">
-                            <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                            조건부·부위한정으로 순수 진단비에서 제외된 특약 ({gap.excludedItems.length}건):
-                          </span>
-                          <div className="space-y-1">
-                            {gap.excludedItems.map((ex, idx) => (
-                              <div
-                                key={idx}
-                                className="bg-white p-2 rounded border border-rose-100 flex flex-col gap-0.5"
-                              >
-                                <div className="flex justify-between items-center">
-                                  <span className="font-bold text-slate-700 line-through text-[11px]">
-                                    {ex.name}
+                              {/* 조건부/한정 특약으로 제외된 내역 (예: 남녀특정암 등) */}
+                              {gap.excludedItems && gap.excludedItems.length > 0 && (
+                                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg space-y-1.5 text-[11px]">
+                                  <span className="font-bold text-rose-800 flex items-center gap-1">
+                                    <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                                    조건부·부위한정으로 순수 진단비에서 제외된 특약 ({gap.excludedItems.length}건):
                                   </span>
-                                  <span className="font-extrabold text-rose-600 text-[10.5px]">
-                                    {(ex.amount / 10000).toLocaleString()}만원 (제외)
-                                  </span>
+                                  <div className="space-y-1">
+                                    {gap.excludedItems.map((ex, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="bg-white p-2 rounded border border-rose-100 flex flex-col gap-0.5"
+                                      >
+                                        <div className="flex justify-between items-center">
+                                          <span className="font-bold text-slate-700 line-through text-[11px]">
+                                            {ex.name}
+                                          </span>
+                                          <span className="font-extrabold text-rose-600 text-[10.5px]">
+                                            {(ex.amount / 10000).toLocaleString()}만원 (제외)
+                                          </span>
+                                        </div>
+                                        <span className="text-[10px] text-slate-500">
+                                          사유: {ex.reason}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
-                                <span className="text-[10px] text-slate-500">
-                                  사유: {ex.reason}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                              )}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}
+
+          {/* 2번 그림 기준 추가 권장 보완 가이드 */}
+          <div className="mt-3 p-3 bg-gradient-to-r from-amber-50 to-orange-50/60 border border-amber-200 rounded-xl text-xs space-y-1.5 shadow-2xs">
+            <div className="font-extrabold text-amber-900 flex items-center gap-1.5">
+              <span>💡 맞춤 보완 추천 항목 (추가 특약)</span>
+            </div>
+            <div className="text-[11px] text-amber-900/90 leading-relaxed space-y-1">
+              <p>
+                • <b>양성뇌종양진단비</b>: 2,000만원 추가 권장
+              </p>
+              <p>
+                • <b>간병비보험</b>: 5년마다 10%씩 보장금액이 증가하는 <b>체증형</b> 권장 (약관상 '직접적인 치료' 문구 제약이 없는 DB손보, 한화손보 등 유리)
+              </p>
+            </div>
+          </div>
         </div>
       </motion.div>
 
