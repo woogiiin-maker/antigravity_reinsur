@@ -123,6 +123,8 @@ export interface ExistingPolicy {
   documentUrl?: string;
   insuredAge?: number; // 자동 추출된 피보험자 나이
   insuredGender?: Gender; // 자동 추출된 피보험자 성별
+  isGenderUnknown?: boolean; // 성별 미확인 여부
+  genderInferredFrom?: string; // 성별 추정 근거 (예: '상품명(여성전용)', '주민등록번호')
   rawExtractedData?: any;
   excludedLimitedCoverages?: ExcludedLimitedCoverage[];
   limitedCoverageAlert?: string;

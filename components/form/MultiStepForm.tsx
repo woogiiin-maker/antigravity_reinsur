@@ -69,6 +69,8 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
   const [autoDetectedAlert, setAutoDetectedAlert] = useState<{
     age: number;
     gender: Gender;
+    isGenderUnknown?: boolean;
+    genderInferredFrom?: string;
     count: number;
     insurer: string;
   } | null>(null);
@@ -147,6 +149,8 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
         setAutoDetectedAlert({
           age: detectedAge,
           gender: detectedGender,
+          isGenderUnknown: policyWithGender?.isGenderUnknown ?? false,
+          genderInferredFrom: policyWithGender?.genderInferredFrom,
           count: parsed.length,
           insurer: parsed[0]?.insurerName || '보험사',
         });
@@ -572,14 +576,80 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                     >
                       <div className="flex items-start gap-2.5">
                         <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                        <div>
+                        <div className="space-y-1.5 flex-1">
                           <h4 className="text-xs font-bold text-emerald-900">
                             피보험자 정보와 증권 {autoDetectedAlert.count}건 자동 추출 완료!
                           </h4>
-                          <p className="text-[11px] text-emerald-800 mt-0.5 leading-relaxed">
-                            증권에서 인식된 피보험자: <span className="font-extrabold text-emerald-950">만 {age}세 ({gender === 'male' ? '남성' : '여성'})</span>
-                            <br />
-                            실제 내용과 다를 경우 아래에서 금액을 터치하여 바로 수정할 수 있습니다.
+
+                          {/* 성별 추정 근거 또는 미확인 안내 */}
+                          {autoDetectedAlert.isGenderUnknown ? (
+                            <div className="p-2 bg-amber-50 border border-amber-300 rounded-xl text-[11px] text-amber-900 flex items-center justify-between gap-2">
+                              <span>⚠️ 증권에서 성별이 명확하지 않습니다. 성별을 선택해 주세요:</span>
+                              <div className="flex gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setGender('male')}
+                                  className={`px-2 py-0.5 rounded-lg font-bold text-xs transition-all ${
+                                    gender === 'male'
+                                      ? 'bg-blue-600 text-white shadow-xs'
+                                      : 'bg-white border border-slate-300 text-slate-700'
+                                  }`}
+                                >
+                                  👨 남성
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setGender('female')}
+                                  className={`px-2 py-0.5 rounded-lg font-bold text-xs transition-all ${
+                                    gender === 'female'
+                                      ? 'bg-rose-500 text-white shadow-xs'
+                                      : 'bg-white border border-slate-300 text-slate-700'
+                                  }`}
+                                >
+                                  👩 여성
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-emerald-800">
+                              <span>
+                                인식된 피보험자: <span className="font-extrabold text-emerald-950">만 {age}세 ({gender === 'male' ? '남성' : '여성'})</span>
+                                {autoDetectedAlert.genderInferredFrom && (
+                                  <span className="text-[10px] text-emerald-700 ml-1">
+                                    ({autoDetectedAlert.genderInferredFrom})
+                                  </span>
+                                )}
+                              </span>
+                              {/* 언제든 원터치로 변경 가능한 성별 스위처 */}
+                              <div className="flex items-center gap-1 bg-white/80 p-0.5 rounded-lg border border-emerald-200">
+                                <button
+                                  type="button"
+                                  onClick={() => setGender('male')}
+                                  className={`px-2 py-0.5 rounded text-[10.5px] font-bold transition-all ${
+                                    gender === 'male'
+                                      ? 'bg-blue-600 text-white shadow-2xs'
+                                      : 'text-slate-600 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  👨 남성
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setGender('female')}
+                                  className={`px-2 py-0.5 rounded text-[10.5px] font-bold transition-all ${
+                                    gender === 'female'
+                                      ? 'bg-rose-500 text-white shadow-2xs'
+                                      : 'text-slate-600 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  👩 여성
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          <p className="text-[10.5px] text-emerald-800/80 leading-relaxed">
+                            나이와 보장금액이 실제와 다를 경우 아래 증권 카드의 <b>[수정]</b>을 눌러 바로 고치실 수 있습니다.
                           </p>
                         </div>
                       </div>
@@ -607,14 +677,34 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                   {/* 인식된 증권 목록 및 실시간 금액 확인/수정 섹션 */}
                   {existingPolicies.length > 0 && (
                     <div className="border border-slate-200 bg-white rounded-2xl p-3.5 space-y-2.5">
-                      <div className="flex justify-between items-center">
+                      <div className="flex flex-wrap justify-between items-center gap-1">
                         <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                           <FileStack className="w-4 h-4 text-blue-600" />
                           등록된 증권 ({existingPolicies.length}건)
                         </span>
-                        <span className="text-[11px] text-slate-500 font-medium">
-                          피보험자: 만 {age}세 / {gender === 'male' ? '남성' : '여성'}
-                        </span>
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
+                          <span>만 {age}세</span>
+                          <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[10px]">
+                            <button
+                              type="button"
+                              onClick={() => setGender('male')}
+                              className={`px-1.5 py-0.5 rounded font-bold transition-colors ${
+                                gender === 'male' ? 'bg-blue-600 text-white' : 'text-slate-600'
+                              }`}
+                            >
+                              남성
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setGender('female')}
+                              className={`px-1.5 py-0.5 rounded font-bold transition-colors ${
+                                gender === 'female' ? 'bg-rose-500 text-white' : 'text-slate-600'
+                              }`}
+                            >
+                              여성
+                            </button>
+                          </div>
+                        </div>
                       </div>
 
                       <p className="text-[10.5px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100">

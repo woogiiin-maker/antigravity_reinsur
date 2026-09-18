@@ -110,14 +110,10 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
   // 1. 나이 및 생년월일 자동 계산
   let detectedAge: number | undefined = undefined;
   let detectedGender: 'male' | 'female' = 'male';
+  let isGenderUnknown = false;
+  let genderInferredFrom: string | undefined = undefined;
 
-  // 만 N세 패턴
-  const manAgeMatch = rawText.match(/만\s*([1-9]\d)\s*세/i) || fileName.match(/(\d{2})세/);
-  if (manAgeMatch) {
-    detectedAge = Number(manAgeMatch[1]);
-  }
-
-  // 주민등록번호 패턴 (예: 881024-1xxxxxx 또는 920512-2xxxxxx)
+  // 1-1. 주민등록번호 패턴 (예: 881024-1xxxxxx 또는 920512-2xxxxxx)
   const rrnMatch = rawText.match(/\b(\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\s*[-–]\s*([1-4])/);
   if (rrnMatch) {
     const yy = Number(rrnMatch[1]);
@@ -126,9 +122,16 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
     const currentYear = new Date().getFullYear();
     detectedAge = currentYear - birthYear;
     detectedGender = genderDigit === 1 || genderDigit === 3 ? 'male' : 'female';
+    genderInferredFrom = `주민등록번호 뒷자리(${genderDigit})`;
   }
 
-  // 생년월일 패턴 (예: 1985년 07월 20일, 1990-05-14)
+  // 1-2. 만 N세 패턴
+  const manAgeMatch = rawText.match(/만\s*([1-9]\d)\s*세/i) || fileName.match(/(\d{2})세/);
+  if (manAgeMatch && !detectedAge) {
+    detectedAge = Number(manAgeMatch[1]);
+  }
+
+  // 1-3. 생년월일 패턴 (예: 1985년 07월 20일, 1990-05-14)
   if (!detectedAge) {
     const birthMatch = rawText.match(/(19\d{2}|20\d{2})[-/.년\s]+(0?[1-9]|1[0-2])[-/.월\s]+(0?[1-9]|[12]\d|3[01])/);
     if (birthMatch) {
@@ -138,9 +141,37 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
     }
   }
 
-  // 성별 키워드 매칭
-  if (text.includes('여성') || text.includes('여자') || text.includes('female') || text.includes('피보험자 : 여') || text.includes('피보험자: 여')) {
+  // 1-4. 상품명 및 담보명에서 남성/여성 구분 정밀 분석
+  // (예: 같은 이름의 보험이라도 "시그니처 여성건강" vs "시그니처 남성건강" 자동 판정)
+  const femaleSignals = [
+    '여성건강', '여성종합', '여성전용', '여성특정', '레이디', '우먼', '미즈', 'miz', 'lady', 'woman',
+    '자궁경부', '자궁암', '난소암', '유방암', '임신', '출산', '엄마', '어머니', '딸', '아내', '여성시대'
+  ];
+  const maleSignals = [
+    '남성건강', '남성종합', '남성전용', '남성특정', '맨즈', '파워맨', 'man', 'men',
+    '전립선', '고환', '아빠', '아버지', '아들', '남편', '남성시대'
+  ];
+
+  const hasFemaleSignal = femaleSignals.some((s) => text.includes(s));
+  const hasMaleSignal = maleSignals.some((s) => text.includes(s));
+
+  if (hasFemaleSignal && !hasMaleSignal) {
     detectedGender = 'female';
+    genderInferredFrom = '상품명/특약(여성 구분)';
+  } else if (hasMaleSignal && !hasFemaleSignal) {
+    detectedGender = 'male';
+    genderInferredFrom = '상품명/특약(남성 구분)';
+  } else if (!rrnMatch) {
+    // 텍스트에서 '피보험자 : 여' 또는 '성별 : 여' 등 직접 표기 확인
+    if (text.match(/(?:피보험자|성별|관계)\s*[:：]\s*여/)) {
+      detectedGender = 'female';
+      genderInferredFrom = '피보험자 성별 표기(여)';
+    } else if (text.match(/(?:피보험자|성별|관계)\s*[:：]\s*남/)) {
+      detectedGender = 'male';
+      genderInferredFrom = '피보험자 성별 표기(남)';
+    } else {
+      isGenderUnknown = true;
+    }
   }
 
   const finalAge = detectedAge && detectedAge >= 15 && detectedAge <= 90 ? detectedAge : 38;
@@ -243,6 +274,8 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
     policyName: policy,
     insuredAge: finalAge,
     insuredGender: detectedGender,
+    isGenderUnknown,
+    genderInferredFrom,
     monthlyPremium: premium,
     coverageDetails: {
       cancer,
