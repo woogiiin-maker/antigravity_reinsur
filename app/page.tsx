@@ -13,6 +13,7 @@ import { Bookmark } from 'lucide-react';
 export default function Home() {
   const [report, setReport] = useState<DiagnosisReport | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [currentPolicies, setCurrentPolicies] = useState<ExistingPolicy[]>([]);
   const [isSavedModalOpen, setIsSavedModalOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
@@ -30,6 +31,7 @@ export default function Home() {
       if (report) {
         setReport(null);
         setUserProfile(null);
+        setCurrentPolicies([]);
       }
     };
 
@@ -40,6 +42,7 @@ export default function Home() {
   const handleFormComplete = async (profile: UserProfile, policies: ExistingPolicy[]) => {
     const generatedReport = diagnoseInsurance(profile, policies);
     setUserProfile(profile);
+    setCurrentPolicies(policies);
     setReport(generatedReport);
 
     // 브라우저 뒤로가기 히스토리 추가
@@ -110,6 +113,7 @@ export default function Home() {
         <DiagnosisReportView
           report={report}
           profile={userProfile}
+          existingPolicies={currentPolicies}
           onReset={handleReset}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenSaved={() => setIsSavedModalOpen(true)}

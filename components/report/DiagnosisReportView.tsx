@@ -19,6 +19,13 @@ import {
   Coins,
   Check,
   Filter,
+  Upload,
+  Plus,
+  Trash2,
+  FileStack,
+  ArrowRight,
+  TrendingUp,
+  ShieldAlert,
 } from 'lucide-react';
 import {
   Radar,
@@ -28,12 +35,20 @@ import {
   PolarRadiusAxis,
   ResponsiveContainer,
 } from 'recharts';
-import { DiagnosisReport, UserProfile } from '@/types/insurance';
+import {
+  DiagnosisReport,
+  UserProfile,
+  ExistingPolicy,
+  ProposedComparisonResult,
+} from '@/types/insurance';
+import { compareProposedPolicies } from '@/lib/engine/diagnosis';
+import { parseMultiplePolicyFiles } from '@/lib/ocr/clientParser';
 import { Bookmark } from 'lucide-react';
 
 interface DiagnosisReportViewProps {
   report: DiagnosisReport;
   profile: UserProfile;
+  existingPolicies?: ExistingPolicy[];
   onReset: () => void;
   onOpenSettings?: () => void;
   onOpenSaved?: () => void;
@@ -42,10 +57,90 @@ interface DiagnosisReportViewProps {
 export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
   report,
   profile,
+  existingPolicies = [],
   onReset,
   onOpenSettings,
   onOpenSaved,
 }) => {
+  // 개별 보장 항목 펼침 (출처 분해 및 조건부 제외 내역 아코디언)
+  const [expandedGapKey, setExpandedGapKey] = useState<string | null>(null);
+
+  // 제안/견적받은 보험 추가 및 보완 효과 비교 상태
+  const [showProposalSection, setShowProposalSection] = useState<boolean>(false);
+  const [proposedPolicies, setProposedPolicies] = useState<ExistingPolicy[]>([]);
+  const [isUploadingProposal, setIsUploadingProposal] = useState<boolean>(false);
+  const [comparisonResult, setComparisonResult] = useState<ProposedComparisonResult | null>(null);
+
+  // 제안받은 보험 업로드 처리
+  const handleProposalUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      setIsUploadingProposal(true);
+      try {
+        const parsed = await parseMultiplePolicyFiles(files);
+        if (parsed.length > 0) {
+          const nextProposed = [...proposedPolicies, ...parsed];
+          setProposedPolicies(nextProposed);
+          const comp = compareProposedPolicies(profile, existingPolicies, nextProposed);
+          setComparisonResult(comp);
+        }
+      } catch (err) {
+        console.error('제안서 파싱 오류:', err);
+      } finally {
+        setIsUploadingProposal(false);
+      }
+    }
+  };
+
+  // 제안받은 보험 샘플 1건 빠른 추가 (체험용)
+  const handleAddSampleProposal = () => {
+    const sampleProposal: ExistingPolicy = {
+      id: `proposed-${Date.now()}`,
+      insurerName: '한화손해보험',
+      policyName: '시그니처 여성건강보험 3.0 (보완 제안서)',
+      monthlyPremium: 48000,
+      coverageDetails: {
+        cancer: 50000000,
+        brain: 20000000,
+        heart: 20000000,
+        nonReimbursedCancer: 100000000,
+        cancerLivingCare: 10000000,
+        heavyParticle: 30000000,
+        surgery: 5000000,
+        diseaseDisability80: 50000000,
+        circulatoryCare: 20000000,
+        indemnity: false,
+      },
+      documentUrl: '제안서 견적',
+      excludedLimitedCoverages: [
+        {
+          name: '남녀특정암진단 II',
+          amount: 5000000,
+          reason: '일반암 전체 미보장 / 부위 한정으로 순수 진단비에서 분리 제외',
+        },
+      ],
+      limitedCoverageAlert: '부위 한정 특약이 자동 필터링되었습니다.',
+    };
+
+    const nextProposed = [...proposedPolicies, sampleProposal];
+    setProposedPolicies(nextProposed);
+    const comp = compareProposedPolicies(profile, existingPolicies, nextProposed);
+    setComparisonResult(comp);
+  };
+
+  // 제안받은 보험 삭제
+  const handleRemoveProposal = (id?: string) => {
+    if (!id) return;
+    const nextProposed = proposedPolicies.filter((p) => p.id !== id);
+    setProposedPolicies(nextProposed);
+    if (nextProposed.length === 0) {
+      setComparisonResult(null);
+    } else {
+      const comp = compareProposedPolicies(profile, existingPolicies, nextProposed);
+      setComparisonResult(comp);
+    }
+  };
+
   // 개별 보험사 상세 펼침 상태 및 필터 상태
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
   const [showAllProducts, setShowAllProducts] = useState<boolean>(false);
@@ -237,48 +332,158 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
           </ResponsiveContainer>
         </div>
 
-        {/* 카테고리별 상세 프로그레스 */}
-        <div className="space-y-3 pt-2">
+        {/* 카테고리별 상세 프로그레스 및 출처 분해 아코디언 */}
+        <div className="space-y-2.5 pt-2">
+          <div className="text-[11px] text-blue-700 bg-blue-50/80 p-2.5 rounded-xl border border-blue-200 flex items-center gap-1.5 font-medium">
+            <Info className="w-4 h-4 text-blue-600 shrink-0" />
+            <span>
+              보장 항목을 <b>터치(클릭)</b>하면 <b>어느 보험에서 얼마가 나오는지</b>와 <b>조건부 제외 내역</b>이 상세 노출됩니다.
+            </span>
+          </div>
+
           {report.coverageGaps.map((gap) => {
             const isDeficient = gap.status === 'insufficient';
+            const isExpanded = expandedGapKey === gap.category;
             return (
-              <div key={gap.category} className="space-y-1">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="font-bold text-slate-700">{gap.label}</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-slate-400 text-[11px]">
-                      {gap.currentAmount > 0
-                        ? `${(gap.currentAmount / 10000).toLocaleString()}만원`
-                        : '0원'}
-                      {' / '}
-                      <span className="text-slate-600 font-semibold">
-                        {(gap.recommendedAmount / 10000).toLocaleString()}만원
+              <div
+                key={gap.category}
+                className={`border rounded-xl transition-all overflow-hidden ${
+                  isExpanded
+                    ? 'border-blue-400 bg-blue-50/20 shadow-xs ring-1 ring-blue-300'
+                    : 'border-slate-200 hover:border-blue-300 bg-white'
+                }`}
+              >
+                {/* 헤더 행 (클릭 시 펼침 토글) */}
+                <div
+                  onClick={() => setExpandedGapKey(isExpanded ? null : gap.category)}
+                  className="p-3 cursor-pointer select-none space-y-1.5"
+                >
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-bold text-slate-800 flex items-center gap-1">
+                      {gap.label}
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                          isExpanded ? 'rotate-180 text-blue-600' : ''
+                        }`}
+                      />
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-400 text-[11px]">
+                        {gap.currentAmount > 0
+                          ? `${(gap.currentAmount / 10000).toLocaleString()}만원`
+                          : '0원'}
+                        {' / '}
+                        <span className="text-slate-600 font-semibold">
+                          {(gap.recommendedAmount / 10000).toLocaleString()}만원
+                        </span>
                       </span>
-                    </span>
-                    <span
-                      className={`text-[11px] font-extrabold px-1.5 py-0.5 rounded ${
-                        isDeficient
-                          ? 'bg-rose-100 text-rose-700'
-                          : 'bg-emerald-100 text-emerald-700'
-                      }`}
-                    >
-                      {gap.fulfillmentRate}%
-                    </span>
+                      <span
+                        className={`text-[11px] font-extrabold px-1.5 py-0.5 rounded ${
+                          isDeficient
+                            ? 'bg-rose-100 text-rose-700'
+                            : 'bg-emerald-100 text-emerald-700'
+                        }`}
+                      >
+                        {gap.fulfillmentRate}%
+                      </span>
+                    </div>
                   </div>
+
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${gap.fulfillmentRate}%` }}
+                      transition={{ duration: 0.5 }}
+                      className={`h-full ${isDeficient ? 'bg-rose-500' : 'bg-blue-600'}`}
+                    />
+                  </div>
+
+                  {isDeficient && !isExpanded && (
+                    <p className="text-[10.5px] text-rose-600 font-medium">{gap.note}</p>
+                  )}
                 </div>
 
-                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${gap.fulfillmentRate}%` }}
-                    transition={{ duration: 0.5 }}
-                    className={`h-full ${isDeficient ? 'bg-rose-500' : 'bg-blue-600'}`}
-                  />
-                </div>
+                {/* 펼쳐지는 상세 출처 분해표 및 제외 특약 내역 */}
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="px-3 pb-3 pt-1 border-t border-slate-100 text-xs space-y-2.5 bg-slate-50/60"
+                    >
+                      {/* 전체 보장 기준 가이드 */}
+                      {gap.ruleNote && (
+                        <div className="text-[10.5px] text-slate-600 bg-white p-2 rounded-lg border border-slate-200 leading-relaxed">
+                          <span className="font-bold text-blue-700">📌 보장 판정 기준: </span>
+                          {gap.ruleNote}
+                        </div>
+                      )}
 
-                {isDeficient && (
-                  <p className="text-[11px] text-rose-600 font-medium">{gap.note}</p>
-                )}
+                      {/* 어느 보험에 얼마가 보장되는지 기여 증권 분해표 */}
+                      <div>
+                        <span className="text-[11px] font-bold text-slate-700 block mb-1">
+                          🏢 가입 증권별 {gap.label} 보장 내역:
+                        </span>
+                        {gap.contributions && gap.contributions.length > 0 ? (
+                          <div className="space-y-1">
+                            {gap.contributions.map((c, idx) => (
+                              <div
+                                key={idx}
+                                className="bg-white p-2 rounded-lg border border-slate-200 flex justify-between items-center text-[11px]"
+                              >
+                                <div className="truncate max-w-[200px]">
+                                  <span className="font-bold text-slate-800">{c.insurerName}</span>
+                                  <span className="text-slate-400 ml-1 text-[10px]">
+                                    ({c.policyName})
+                                  </span>
+                                </div>
+                                <span className="font-extrabold text-blue-600 shrink-0">
+                                  {(c.amount / 10000).toLocaleString()}만원
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="bg-white p-2 rounded-lg border border-slate-200 text-[11px] text-slate-400 text-center">
+                            가입된 증권 중 순수 {gap.label} 전체를 보장하는 계약이 없습니다.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 조건부/한정 특약으로 제외된 내역 (예: 남녀특정암 등) */}
+                      {gap.excludedItems && gap.excludedItems.length > 0 && (
+                        <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg space-y-1.5 text-[11px]">
+                          <span className="font-bold text-rose-800 flex items-center gap-1">
+                            <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                            조건부·부위한정으로 순수 진단비에서 제외된 특약 ({gap.excludedItems.length}건):
+                          </span>
+                          <div className="space-y-1">
+                            {gap.excludedItems.map((ex, idx) => (
+                              <div
+                                key={idx}
+                                className="bg-white p-2 rounded border border-rose-100 flex flex-col gap-0.5"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <span className="font-bold text-slate-700 line-through text-[11px]">
+                                    {ex.name}
+                                  </span>
+                                  <span className="font-extrabold text-rose-600 text-[10.5px]">
+                                    {(ex.amount / 10000).toLocaleString()}만원 (제외)
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-slate-500">
+                                  사유: {ex.reason}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             );
           })}
@@ -328,7 +533,214 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
         )}
       </motion.div>
 
-      {/* 4. 맞춤 상품 추천 리스트 */}
+      {/* 4. 제안/견적받은 보험 추가 및 보완 효과 비교 시뮬레이터 (Before vs After) */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.18 }}
+        className="bg-white rounded-2xl p-5 border-2 border-indigo-200 shadow-sm space-y-4"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs">
+              <FileStack className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">
+                제안받은 보험 보완 효과 비교 (Before vs After)
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                견적받은 증권/제안서를 올리면 기존 보험과의 합산 보완율을 비교 분석합니다.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 제안서 업로드 존 & 샘플 추가 버튼 */}
+        <div className="space-y-2.5">
+          <div className="border-2 border-dashed border-indigo-300 hover:border-indigo-500 bg-indigo-50/40 rounded-xl p-3.5 text-center transition-all">
+            <label className="flex flex-col items-center justify-center cursor-pointer">
+              <input
+                type="file"
+                multiple
+                accept="application/pdf,image/*"
+                onChange={handleProposalUpload}
+                className="hidden"
+              />
+              {isUploadingProposal ? (
+                <div className="flex items-center gap-2 py-2">
+                  <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-xs font-bold text-indigo-700">
+                    제안서 보장 내역을 정밀 분석 중입니다...
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-1">
+                  <Upload className="w-5 h-5 text-indigo-600 mb-1" />
+                  <span className="text-xs font-bold text-indigo-950">
+                    제안받은 보험 견적서(PDF / 사진) 업로드
+                  </span>
+                  <span className="text-[10px] text-indigo-600/80 mt-0.5">
+                    설계사에게 받은 제안서를 올리면 한정특약 필터링 및 보완 효과를 자동 계산합니다.
+                  </span>
+                </div>
+              )}
+            </label>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleAddSampleProposal}
+              className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg border border-indigo-200 transition-colors"
+            >
+              <Sparkles className="w-3 h-3 text-indigo-500" />
+              샘플 제안서 추가해보기 (한화 3대보장 월 4.8만)
+            </button>
+          </div>
+        </div>
+
+        {/* 등록된 제안 보험 목록 */}
+        {proposedPolicies.length > 0 && (
+          <div className="space-y-2 pt-1 border-t border-slate-100">
+            <span className="text-xs font-bold text-slate-700 block">
+              추가된 제안 보험 ({proposedPolicies.length}건):
+            </span>
+            <div className="space-y-1.5">
+              {proposedPolicies.map((prop) => (
+                <div
+                  key={prop.id}
+                  className="bg-indigo-50/70 p-2.5 rounded-xl border border-indigo-200 flex justify-between items-center text-xs"
+                >
+                  <div className="truncate max-w-[240px]">
+                    <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                      <span className="px-1.5 py-0.5 bg-indigo-200 text-indigo-800 rounded text-[10px] font-extrabold">
+                        제안
+                      </span>
+                      <span>{prop.insurerName}</span>
+                      <span className="text-slate-500 font-medium text-[11px]">
+                        {prop.policyName}
+                      </span>
+                    </div>
+                    <span className="text-[10.5px] text-slate-500">
+                      월 {Number(prop.monthlyPremium).toLocaleString()}원
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveProposal(prop.id)}
+                    className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                    title="제안서 삭제"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Before vs After 비교 분석 결과 카드 */}
+        {comparisonResult && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mt-3 bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-950 text-white rounded-2xl p-4 shadow-lg space-y-4 border border-indigo-700/50"
+          >
+            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+              <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-emerald-400" />
+                보완 효과 분석 (Before ➔ After)
+              </span>
+              <span className="text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                점수 +{comparisonResult.afterScore - comparisonResult.beforeScore}점 상승
+              </span>
+            </div>
+
+            {/* 점수 & 보험료 Before vs After 지표 */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-white/10 p-3 rounded-xl backdrop-blur-xs border border-white/10 space-y-1">
+                <span className="text-[10.5px] text-slate-300 block">종합 건강보장 점수</span>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-base text-slate-400 font-bold line-through">
+                    {comparisonResult.beforeScore}점
+                  </span>
+                  <span className="text-xs text-slate-400">➔</span>
+                  <span className="text-xl font-black text-amber-300">
+                    {comparisonResult.afterScore}점
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-white/10 p-3 rounded-xl backdrop-blur-xs border border-white/10 space-y-1">
+                <span className="text-[10.5px] text-slate-300 block">총 월 납입 보험료</span>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-xs text-slate-400 font-bold">
+                    {(comparisonResult.beforePremium / 10000).toFixed(1)}만
+                  </span>
+                  <span className="text-xs text-slate-400">➔</span>
+                  <span className="text-sm font-black text-emerald-300">
+                    {(comparisonResult.afterPremium / 10000).toFixed(1)}만
+                  </span>
+                </div>
+                <span className="text-[10px] text-indigo-200 block">
+                  (+{(comparisonResult.premiumIncrease / 10000).toFixed(1)}만원 추가)
+                </span>
+              </div>
+            </div>
+
+            {/* AI 평가 코멘트 */}
+            <p className="text-xs text-slate-200 bg-white/5 p-2.5 rounded-xl border border-white/10 leading-relaxed">
+              💡 {comparisonResult.aiEvaluation}
+            </p>
+
+            {/* 9대 보장 항목별 Before vs After 보완율 비교 표 */}
+            <div className="space-y-2 pt-1">
+              <span className="text-[11px] font-bold text-indigo-200 block">
+                항목별 충족도 변화:
+              </span>
+              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                {comparisonResult.gapsAfter.map((afterGap) => {
+                  const beforeGap = comparisonResult.gapsBefore.find((g) => g.category === afterGap.category);
+                  const beforeFulfillment = beforeGap ? beforeGap.fulfillmentRate : 0;
+                  const beforeAmount = beforeGap ? beforeGap.currentAmount : 0;
+                  return (
+                    <div
+                      key={afterGap.category}
+                      className="bg-white/5 p-2 rounded-lg border border-white/10 text-xs flex justify-between items-center"
+                    >
+                      <div>
+                        <span className="font-bold text-slate-200">{afterGap.label}</span>
+                        <div className="text-[10px] text-slate-400">
+                          기존 {(beforeAmount / 10000).toLocaleString()}만 ➔ 제안후{' '}
+                          {(afterGap.currentAmount / 10000).toLocaleString()}만
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-400">
+                          {beforeFulfillment}%
+                        </span>
+                        <span className="text-[10px] text-slate-400">➔</span>
+                        <span
+                          className={`text-xs font-extrabold px-1.5 py-0.5 rounded ${
+                            afterGap.fulfillmentRate >= 100
+                              ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/50'
+                              : 'bg-amber-500/30 text-amber-300 border border-amber-500/50'
+                          }`}
+                        >
+                          {afterGap.fulfillmentRate}%
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </motion.div>
+
+      {/* 5. 맞춤 상품 추천 리스트 */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
