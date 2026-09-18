@@ -189,6 +189,7 @@ export interface ExcludedLimitedCoverage {
   name: string;
   amount: number;
   reason: string;
+  targetCategory?: CoverageKey;
 }
 
 export interface MatchedRiderDetail {

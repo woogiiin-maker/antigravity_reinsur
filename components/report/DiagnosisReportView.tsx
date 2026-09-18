@@ -130,7 +130,7 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
       matchedRiders: {
         cancer: [{ riderName: 'KB 3,000만 + 현대 1,000만 일반암진단비', amount: 40000000, note: '순수 일반암 100% 진단비 완벽 충족' }],
         similarCancer: [{ riderName: 'KB 800만 + 현대 200만 유사암진단비', amount: 10000000, note: '갑상선암/경계성종양/제자리암 1,000만원 보장' }],
-        nonReimbursedCancer: [{ riderName: '비급여암 주요치료비(연간 1회한, 5년간)', amount: 20000000, note: 'KB손보 비급여 표적/면역항암 치료비' }],
+        nonReimbursedCancer: [{ riderName: '비급여(전액본인부담 포함) 암 주요치료비Plus(종합병원)', amount: 20000000, note: '3번 그림 기준: 종합병원 비급여 암수술/항암약물/방사선치료 종합 보장 (연간 1회한 2,000만원)' }],
         cancerLivingCare: [{ riderName: '암주요치료 생활비 담보', amount: 20000000, note: 'KB손보 암 치료 기간 매년 생활비 지급' }],
         heavyParticle: [{ riderName: '항암 중입자·양성자 방사선치료비', amount: 50000000, note: '중입자가속기 및 양성자치료비 5,000만원 지급' }],
         brain: [{ riderName: '현대 1,000만 + KB 1,000만 뇌혈관진단비', amount: 20000000, note: '뇌출혈, 뇌경색 등 뇌혈관 질환 전체 보장' }],

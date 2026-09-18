@@ -23,21 +23,31 @@ const STRICT_OCR_PROMPT = `
    - '남녀특정암', '여성특정암(자궁, 유방, 난소 등)', '남성특정암', '소액암', '유사암(상피내암, 제자리암, 경계성종양, 기타피부암 등)', '3대암', '5대고액암', '중대한암(CI암)'과 같이 특정 부위나 종류/조건으로 한정된 특약은 순수 일반암이 아니므로 절대 "cancer"에 포함하지 말고 0원으로 제외하세요!
    - 제외된 특약은 "excludedLimitedCoverages" 목록에 반드시 기재하세요.
 
-2. 뇌질환 진단비 ("brain"):
+2. 비급여암 주요치료비 ("nonReimbursedCancer"):
+   - 담보명에 '비급여'와 '암주요치료비'가 모두 명시되어 비급여 암수술, 항암약물, 항암방사선 치료를 종합적으로 보장하는 담보만 인정합니다. (예: '비급여(전액본인부담 포함) 암 주요치료비Plus')
+   - '표적항암약물허가치료(단독)', '암로봇수술/다빈치(단독)', '항암방사선치료(단독)', '항암약물치료(단독)', '카티(CAR-T)치료(단독)' 등 개별 치료 행위에만 한정된 조건부 담보는 종합 비급여암 주요치료비가 아니므로 전면 제외(0원)하고 "excludedLimitedCoverages"에 기재하세요!
+
+3. 뇌질환 진단비 ("brain"):
    - 뇌혈관질환 전체(뇌출혈, 뇌경색, 뇌동맥류 등 질병코드 I60~I69 전체)를 보장하는 경우에만 인정합니다.
    - '뇌졸중', '뇌경색', '뇌출혈', '중대한뇌졸중'에만 한정된 특약은 순수 뇌질환 진단비에서 전면 제외(0원)하고 "excludedLimitedCoverages"에 기록하세요.
 
-3. 심장질환 진단비 ("heart"):
+4. 심장질환 진단비 ("heart"):
    - 허혈성심장질환 전체(협심증 I20, 급성심근경색 I21~I23 등) 또는 심혈관질환 전체를 보장하는 경우에만 인정합니다.
    - '급성심근경색증' 또는 '중대한급성심근경색'만 한정 보장하는 경우 순수 심장질환 진단비에서 전면 제외(0원)하고 "excludedLimitedCoverages"에 기록하세요.
 
-4. 9대 핵심 보장 항목 추출:
-   - "nonReimbursedCancer": 비급여암 주요치료비 (표적항암약물허가치료, 로봇수술 등 비급여 치료비)
-   - "cancerLivingCare": 암 주요치료 생활비 (암 치료 지원 생활자금)
+5. 질병/상해 수술비 ("diseaseSurgery", "injurySurgery", "surgery"):
+   - 모든 질병 또는 모든 상해를 대상으로 하는 '질병/상해 1~5종 수술비' 또는 '질병/상해 수술비(포괄)'만 인정합니다. (예: 무파워수술보장특약 등)
+   - '암수술비(단독)', '부인과질환수술비', '여성특정질환수술비', '뇌/심장수술비', 'N대질병수술비', '골절수술비', '화상수술비' 등 특정 질병이나 특정 상해에 한정된 조건부 수술비는 전체 수술비에서 전면 제외(0원)하고 "excludedLimitedCoverages"에 기록하세요!
+
+6. 순환계질환 주요치료비 ("circulatoryCare"):
+   - 뇌·심장 순환계 질환 주요치료 전반을 종합 보장하는 담보만 인정합니다.
+   - '급성뇌경색 혈전용해치료비(단독)', '급성심근경색 혈전용해치료비(단독)' 등 특정 단일 치료 행위에 국한된 특약은 제외(0원)하고 "excludedLimitedCoverages"에 기록하세요.
+
+7. 기타 핵심 보장:
+   - "cancerLivingCare": 암 주요치료 생활비 (종합 생활자금 지원)
    - "heavyParticle": 항암 중입자·양성자 치료비
+   - "injuryDisability": 상해후유장해 3% 이상 전체
    - "diseaseDisability80": 질병후유장해 80% 이상 보장금액
-   - "surgery": 질병/상해 1~5종 종수술비 (예: 무파워수술특약 등)
-   - "circulatoryCare": 순환계질환 주요치료비 (혈전용해치료 등)
    - "indemnity": 실손의료비 가입 여부 (true/false)
 
 반환할 JSON 스키마:
@@ -51,24 +61,28 @@ const STRICT_OCR_PROMPT = `
   "maturityDate": "YYYY-MM-DD",
   "coverageDetails": {
     "cancer": 순수 일반암 진단비(한정 특약 완전 제외, 숫자 원 단위, 없으면 0),
+    "similarCancer": 유사암 진단비(숫자 원 단위, 없으면 0),
     "brain": 순수 뇌혈관 전체 진단비(뇌졸중/뇌경색/뇌출혈 한정 제외, 숫자 원 단위, 없으면 0),
     "heart": 순수 허혈성 전체 진단비(급성심근경색 한정 제외, 숫자 원 단위, 없으면 0),
-    "nonReimbursedCancer": 비급여암치료비(숫자 원 단위, 없으면 0),
+    "nonReimbursedCancer": 종합 비급여암 주요치료비(표적/로봇/방사선 단독 제외, 숫자 원 단위, 없으면 0),
     "cancerLivingCare": 암생활비(숫자 원 단위, 없으면 0),
     "heavyParticle": 중입자치료비(숫자 원 단위, 없으면 0),
+    "injuryDisability": 상해후유장해 3%~(숫자 원 단위, 없으면 0),
     "diseaseDisability80": 질병후유장해80%(숫자 원 단위, 없으면 0),
+    "injurySurgery": 상해 1~5종 수술비(골절/화상 등 한정 제외, 숫자 원 단위, 없으면 0),
+    "diseaseSurgery": 질병 1~5종 수술비(암수술/부인과수술 등 한정 제외, 숫자 원 단위, 없으면 0),
     "surgery": 질병/상해 1~5종 수술비(숫자 원 단위, 없으면 0),
-    "circulatoryCare": 순환계치료비(숫자 원 단위, 없으면 0),
+    "circulatoryCare": 종합 순환계치료비(단순 혈전용해 제외, 숫자 원 단위, 없으면 0),
     "indemnity": 실손의료비 가입여부(true/false)
   },
   "excludedLimitedCoverages": [
     {
-      "name": "제외된 한정 특약명 (예: 남녀특정암, 뇌졸중, 급성심근경색, CI보장 등)",
+      "name": "제외된 한정 특약명 (예: 암수술비, 부인과질환수술비, 표적항암, 뇌졸중 등)",
       "amount": 금액(숫자),
-      "reason": "한정 부위/질환 보장으로 순수 전체 진단비에서 제외됨"
+      "reason": "한정 부위/치료/질환 조건부 특약으로 순수 전체 보장에서 제외됨"
     }
   ],
-  "limitedCoverageAlert": "안내 문구"
+  "limitedCoverageAlert": "조건부·한정 보장 필터링 안내 문구"
 }
 `;
 
@@ -244,6 +258,7 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
       name: specialCancerMatch[1].trim(),
       amount: amt > 0 ? amt : 0,
       reason: '일반암 전체 미보장 / 특정 부위·종류·성별 한정으로 순수 일반암 진단비에서 제외',
+      targetCategory: 'cancer',
     });
   }
 
@@ -257,6 +272,7 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
       name: strokeMatch[1].trim(),
       amount: amt > 0 ? amt : 0,
       reason: '뇌혈관 질환 전체(I60~I69) 미보장(뇌졸중/뇌경색/뇌출혈 한정)으로 순수 뇌혈관질환 진단비에서 제외',
+      targetCategory: 'brain',
     });
   }
 
@@ -270,7 +286,64 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
       name: heartAttackMatch[1].trim(),
       amount: amt > 0 ? amt : 0,
       reason: '협심증(I20) 미보장(급성심근경색증 한정)으로 순수 허혈성심장질환 진단비에서 제외',
+      targetCategory: 'heart',
     });
+  }
+
+  // 5-4. 조건부 특정질환/특정상해 수술비 검출 ➔ 질병/상해 수술비에서 제외 (1번 그림 반영)
+  const specialSurgeryMatches = Array.from(
+    rawText.matchAll(
+      /((?:암\s*수술|부인과[가-힣\s]*수술|여성특정[가-힣\s]*수술|특정질병\s*수술|골절\s*수술|화상\s*수술|백내장\s*수술|중대한\s*수술)[가-힣A-Za-z0-9\s()·]*)\s*[:：=]?\s*([\d,]+)/gi
+    )
+  );
+  for (const m of specialSurgeryMatches) {
+    const sName = m[1].trim();
+    const amt = parseAmount(new RegExp(sName.replace(/[()]/g, '\\$&') + '\\s*[:：=]?\\s*([\\d,]+)'));
+    const isInjury = sName.includes('골절') || sName.includes('화상');
+    excluded.push({
+      name: sName,
+      amount: amt > 0 ? amt : 0,
+      reason: '전체 질병/상해 대상 수술비가 아닌 특정 조건(암/부인과/골절 등)에 한정된 수술비로 제외',
+      targetCategory: isInjury ? 'injurySurgery' : 'diseaseSurgery',
+    });
+  }
+
+  // 5-5. 개별 비급여/항암 치료 행위 한정 검출 ➔ 비급여암 주요치료비에서 제외 (2번·3번 그림 반영)
+  const limitedChemoMatches = Array.from(
+    rawText.matchAll(
+      /((?:표적항암[가-힣\s()·]*치료|로봇수술|다빈치|항암방사선[가-힣\s()·]*치료|항암약물[가-힣\s()·]*치료)[가-힣A-Za-z0-9\s()·]*)\s*[:：=]?\s*([\d,]+)/gi
+    )
+  );
+  for (const m of limitedChemoMatches) {
+    const cName = m[1].trim();
+    if (!rawText.includes('암 주요치료비Plus') && !rawText.includes('비급여 암 주요치료비')) {
+      const amt = parseAmount(new RegExp(cName.replace(/[()]/g, '\\$&') + '\\s*[:：=]?\\s*([\\d,]+)'));
+      excluded.push({
+        name: cName,
+        amount: amt > 0 ? amt : 0,
+        reason: '3번 그림 기준: 암수술/약물/방사선을 종합 보장하는 비급여 암 주요치료비가 아닌 개별 행위 한정 담보로 제외',
+        targetCategory: 'nonReimbursedCancer',
+      });
+    }
+  }
+
+  // 5-6. 급성 특정 혈전용해 한정 검출 ➔ 순환계질환 주요치료비에서 제외
+  const thrombolysisMatches = Array.from(
+    rawText.matchAll(
+      /((?:급성뇌경색[가-힣\s]*혈전용해|급성심근경색[가-힣\s]*혈전용해)[가-힣A-Za-z0-9\s()·]*)\s*[:：=]?\s*([\d,]+)/gi
+    )
+  );
+  for (const m of thrombolysisMatches) {
+    const tName = m[1].trim();
+    if (!rawText.includes('순환계질환 주요치료비')) {
+      const amt = parseAmount(new RegExp(tName.replace(/[()]/g, '\\$&') + '\\s*[:：=]?\\s*([\\d,]+)'));
+      excluded.push({
+        name: tName,
+        amount: amt > 0 ? amt : 0,
+        reason: '순환계질환 종합 주요치료비가 아닌 급성 특정질환 혈전용해 한정 담보로 제외',
+        targetCategory: 'circulatoryCare',
+      });
+    }
   }
 
   // 6. 엄격한 순수 보장금액 파싱 (문서에 텍스트가 없으면 반드시 0원 유지!)
@@ -295,8 +368,12 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
     heart = parseAmount(/(?:허혈성\s*심장[질환]*\s*진단비?|허혈심장\s*진단비?|허혈성\s*심질환\s*진단비?)\s*[:：=]?\s*([\d,]+)/i);
   }
 
-  // 6-4. 비급여암 주요치료비
-  let nonReimbursedCancer = parseAmount(/(?:비급여암[가-힣\s]*치료비?|암\s*주요치료비?|표적항암[가-힣\s]*치료비?)\s*[:：=]?\s*([\d,]+)/i);
+  // 6-4. 비급여암 주요치료비 (3번 그림 기준 종합 담보만 인정, 표적/로봇/방사선 단독 제외)
+  let nonReimbursedCancer = 0;
+  const compCancerCareMatch = rawText.match(/(?:비급여\s*\(?전액본인부담\s*포함\)?\s*암\s*주요치료비[가-힣A-Za-z0-9\s()·]*|비급여\s*암\s*주요치료비[가-힣A-Za-z0-9\s()·]*)\s*[:：=]?\s*([\d,]+)/i);
+  if (compCancerCareMatch && !/(?:표적약물허가|로봇수술단독|방사선단독|약물단독)/.test(compCancerCareMatch[0])) {
+    nonReimbursedCancer = parseAmount(/(?:비급여\s*\(?전액본인부담\s*포함\)?\s*암\s*주요치료비[가-힣A-Za-z0-9\s()·]*|비급여\s*암\s*주요치료비[가-힣A-Za-z0-9\s()·]*)\s*[:：=]?\s*([\d,]+)/i);
+  }
 
   // 6-5. 암 주요치료 생활비
   let cancerLivingCare = parseAmount(/(?:암\s*주요치료\s*생활비?|암\s*치료생활비?|암\s*생활자금)\s*[:：=]?\s*([\d,]+)/i);
@@ -307,11 +384,19 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
   // 6-7. 질병후유장해 80% 이상
   let diseaseDisability80 = parseAmount(/(?:질병.*(?:고도장해|고도후유장해|특정고도장해|80%이상)|질병후유장해\s*\(?80%이상\)?)\s*[:：=]?\s*([\d,]+)/i);
 
-  // 6-8. 질병/상해 1~5종 수술비
-  let surgery = parseAmount(/(?:질병.*(?:1[-~]5종|1[-~]7종|1[-~]8종|종수술)|상해.*(?:1[-~]5종|1[-~]7종)|1[-~]5종\s*수술비?)\s*[:：=]?\s*([\d,]+)/i);
+  // 6-8. 질병/상해 1~5종 수술비 (암수술, 부인과수술, 골절수술 등 조건부 제외)
+  let surgery = 0;
+  const surgeryMatch = rawText.match(/(?:질병.*(?:1[-~]5종|1[-~]7종|1[-~]8종|종수술)|상해.*(?:1[-~]5종|1[-~]7종)|무파워수술|1[-~]5종\s*수술비?)\s*[:：=]?\s*([\d,]+)/i);
+  if (surgeryMatch && !/(?:암수술|부인과|여성특정|골절|화상|충수|백내장)/.test(surgeryMatch[0])) {
+    surgery = parseAmount(/(?:질병.*(?:1[-~]5종|1[-~]7종|1[-~]8종|종수술)|상해.*(?:1[-~]5종|1[-~]7종)|무파워수술|1[-~]5종\s*수술비?)\s*[:：=]?\s*([\d,]+)/i);
+  }
 
-  // 6-9. 순환계질환 주요치료비
-  let circulatoryCare = parseAmount(/(?:순환계[질환]*\s*(?:주요치료비?|치료비?)|심뇌혈관[질환]*\s*주요치료비?|신특정순환계.*주요치료비?)\s*[:：=]?\s*([\d,]+)/i);
+  // 6-9. 순환계질환 주요치료비 (종합 담보만 인정, 단순 혈전용해 제외)
+  let circulatoryCare = 0;
+  const circMatch = rawText.match(/(?:순환계\s*질환\s*주요치료비?|순환계\s*주요치료비?|심뇌혈관\s*주요치료비?)\s*[:：=]?\s*([\d,]+)/i);
+  if (circMatch && !/(?:혈전용해단독)/.test(circMatch[0])) {
+    circulatoryCare = parseAmount(/(?:순환계\s*질환\s*주요치료비?|순환계\s*주요치료비?|심뇌혈관\s*주요치료비?)\s*[:：=]?\s*([\d,]+)/i);
+  }
 
   // 6-10. 월 보험료
   let premium = parseAmount(/(?:월납\s*보험료|합계\s*보험료|납입\s*보험료|월보험료)\s*[:：=]?\s*([\d,]+)/i);
@@ -330,7 +415,7 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
     matchedRiders.heart = [{ riderName: '허혈성심장질환 진단비 (협심증 포함)', amount: heart, note: '협심증 및 급성심근경색증 전체 보장' }];
   }
   if (nonReimbursedCancer > 0) {
-    matchedRiders.nonReimbursedCancer = [{ riderName: '비급여암 주요치료비 및 표적항암 담보', amount: nonReimbursedCancer, note: '비급여 표적/면역항암제 및 신의료기술 치료비' }];
+    matchedRiders.nonReimbursedCancer = [{ riderName: '비급여암 주요치료비 담보', amount: nonReimbursedCancer, note: '비급여 암수술/약물/방사선 종합 주요치료비' }];
   }
   if (cancerLivingCare > 0) {
     matchedRiders.cancerLivingCare = [{ riderName: '암 주요치료 생활자금 담보', amount: cancerLivingCare, note: '암 치료 시 지속 생활지원금 지급' }];
@@ -346,7 +431,7 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
     matchedRiders.diseaseSurgery = [{ riderName: '질병 수술비 (1~5종) 담보', amount: surgery, note: '1~5종 관혈/비관혈 질병 수술비 회당 차등 지급' }];
   }
   if (circulatoryCare > 0) {
-    matchedRiders.circulatoryCare = [{ riderName: '순환계질환 주요치료비 (혈전용해 등) 담보', amount: circulatoryCare, note: '뇌·심장 순환계 혈전용해 및 주요 치료비 보장' }];
+    matchedRiders.circulatoryCare = [{ riderName: '순환계질환 주요치료비 담보', amount: circulatoryCare, note: '뇌·심장 순환계 혈전용해 및 주요 치료비 보장' }];
   }
   if (indemnity) {
     matchedRiders.indemnity = [{ riderName: '상해·질병 입원의료비/통원의료비 담보', amount: 50000000, note: '실제 발생 병원 치료비 실손 보상' }];
@@ -510,7 +595,7 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
       coverageDetails: {
         cancer: 0, // 일반암 진단비 없음
         similarCancer: 0,
-        nonReimbursedCancer: 20000000, // 표적항암약물허가치료 2,000만원
+        nonReimbursedCancer: 0, // 2·3번 그림: 표적/로봇/방사선 단독치료는 조건부라 제외 (0원)
         cancerLivingCare: 0,
         heavyParticle: 0,
         brain: 0, // 뇌혈관질환 진단비 없음
@@ -518,63 +603,63 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
         injuryDisability: 0,
         diseaseDisability80: 0,
         injurySurgery: 0,
-        diseaseSurgery: 1000000, // 암수술 100만원
-        surgery: 1000000,
-        circulatoryCare: 10000000, // 혈전용해치료비 뇌/심장 각 500만원
+        diseaseSurgery: 0, // 1번 그림: 암수술 100만은 조건부 수술비라 제외 (0원)
+        surgery: 0,
+        circulatoryCare: 0, // 급성 혈전용해 2건은 조건부라 제외 (0원)
         indemnity: false,
       },
       documentUrl: file.name,
       excludedLimitedCoverages: [
+        {
+          name: '암수술(특별약관)담보',
+          amount: 1000000,
+          reason: '1번 그림 기준: 전체 질병 수술이 아닌 암 질환에만 국한된 조건부 수술비로 질병수술비에서 제외',
+          targetCategory: 'diseaseSurgery',
+        },
+        {
+          name: '표적항암약물허가치료(갱신형)(특별약관)담보',
+          amount: 20000000,
+          reason: '2·3번 그림 기준: 암수술/약물/방사선을 종합 보장하는 비급여 암 주요치료비가 아닌 표적항암제 투약 한정 조건부 담보로 제외',
+          targetCategory: 'nonReimbursedCancer',
+        },
+        {
+          name: '암로봇수술(다빈치/레볼루션)(갑상선암/기타피부암제외)담보',
+          amount: 10000000,
+          reason: '종합 비급여 암 주요치료비가 아닌 로봇수술 행위 한정 조건부 담보로 제외',
+          targetCategory: 'nonReimbursedCancer',
+        },
+        {
+          name: '항암방사선치료비(특별약관)담보',
+          amount: 5000000,
+          reason: '종합 비급여 암 주요치료비가 아닌 단순 방사선 한정 담보로 제외',
+          targetCategory: 'nonReimbursedCancer',
+        },
+        {
+          name: '항암약물치료비(특별약관)담보',
+          amount: 5000000,
+          reason: '종합 비급여 암 주요치료비가 아닌 단순 약물 한정 담보로 제외',
+          targetCategory: 'nonReimbursedCancer',
+        },
+        {
+          name: '급성뇌경색 혈전용해치료비담보',
+          amount: 5000000,
+          reason: '순환계질환 종합 주요치료비가 아닌 급성 뇌경색 혈전용해 한정 조건부 담보로 제외',
+          targetCategory: 'circulatoryCare',
+        },
+        {
+          name: '급성심근경색 혈전용해치료비담보',
+          amount: 5000000,
+          reason: '순환계질환 종합 주요치료비가 아닌 급성 심근경색 혈전용해 한정 조건부 담보로 제외',
+          targetCategory: 'circulatoryCare',
+        },
         {
           name: '보험료납입면제대상(암/뇌졸중/급성심근경색)',
           amount: 100000,
           reason: '납입면제 특약으로 순수 진단비에서 제외',
         },
       ],
-      limitedCoverageAlert: '뇌졸중/심근경색 한정 혈전용해 치료비 및 표적항암 치료비가 감지되었습니다.',
-      matchedRiders: {
-        nonReimbursedCancer: [
-          {
-            riderName: '표적항암약물허가치료(갱신형)(특별약관)담보',
-            amount: 20000000,
-            note: '식약처 허가 표적항암제 투약 치료 시 연간 1회 한도 2,000만원 보장',
-          },
-          {
-            riderName: '암로봇수술(다빈치/레볼루션)(갑상선암/기타피부암제외)담보',
-            amount: 10000000,
-            note: '비급여 최신 다빈치/레볼루션 로봇수술 1회당 1,000만원 보장',
-          },
-          {
-            riderName: '항암방사선치료비(특별약관)담보',
-            amount: 5000000,
-            note: '항암 방사선 치료 시 500만원 보장',
-          },
-          {
-            riderName: '항암약물치료비(특별약관)담보',
-            amount: 5000000,
-            note: '항암 약물 투약 치료 시 500만원 보장',
-          },
-        ],
-        circulatoryCare: [
-          {
-            riderName: '급성뇌경색 혈전용해치료비담보',
-            amount: 5000000,
-            note: '급성 뇌경색 발생 시 혈전용해제 투약 치료비 보장',
-          },
-          {
-            riderName: '급성심근경색 혈전용해치료비담보',
-            amount: 5000000,
-            note: '급성 심근경색 발생 시 혈전용해제 투약 치료비 보장',
-          },
-        ],
-        diseaseSurgery: [
-          {
-            riderName: '암수술(특별약관)담보',
-            amount: 1000000,
-            note: '암 직접 치료 목적 수술 시 회당 지급',
-          },
-        ],
-      },
+      limitedCoverageAlert: '조건부 수술비(암수술), 단독 치료비(표적항암/로봇수술/혈전용해)가 감지되어 핵심 보장에서 분리 제외되었습니다.',
+      matchedRiders: {},
     };
   }
 
@@ -605,8 +690,8 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
         injuryDisability: 0,
         diseaseDisability80: 0,
         injurySurgery: 0,
-        diseaseSurgery: 5000000, // 부인과/여성질환 수술보장
-        surgery: 5000000,
+        diseaseSurgery: 0, // 1번 그림: 부인과/여성질환 한정 수술보장이라 제외 (0원)
+        surgery: 0,
         circulatoryCare: 0,
         indemnity: false,
       },
@@ -616,22 +701,22 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
           name: '여성특정암 진단비',
           amount: 20000000,
           reason: '유방암/자궁암 등 여성특정 부위 한정 보장으로 순수 일반암 진단비에서 제외',
+          targetCategory: 'cancer',
+        },
+        {
+          name: '부인과질환 및 여성특정질환 수술보장특약',
+          amount: 5000000,
+          reason: '1번 그림 기준: 전체 질병 1~5종 수술이 아닌 부인과/여성질환에만 국한된 조건부 수술비로 질병수술비에서 제외',
+          targetCategory: 'diseaseSurgery',
         },
       ],
-      limitedCoverageAlert: '여성특정암 등 특정 부위 한정보장이 감지되어 순수 진단비에서 분리되었습니다.',
+      limitedCoverageAlert: '여성특정암 및 부인과 특정수술 등 한정보장이 감지되어 핵심 보장에서 분리되었습니다.',
       matchedRiders: {
         similarCancer: [
           {
             riderName: '상피내암·경계성종양 등 유사암 진단특약',
             amount: 5000000,
             note: '유사암 진단 시 500만원 보장',
-          },
-        ],
-        diseaseSurgery: [
-          {
-            riderName: '부인과질환 및 여성특정질환 수술보장특약',
-            amount: 5000000,
-            note: '여성 만성질환 및 부인과 수술 시 회당 지급',
           },
         ],
       },
@@ -664,7 +749,7 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
         heart: 0, // 순수 허혈성 없음 (CI 중대한급성심근경색 한정)
         injuryDisability: 0,
         diseaseDisability80: 0,
-        // 1번 그림: 무파워수술보장특약 1종 14만원 ~ 5종 700만원 (최대 700만원)
+        // 1번 그림: 무파워수술보장특약 1종 14만원 ~ 5종 700만원 (최대 700만원, 상해/질병 전반 수술비 인정)
         injurySurgery: 7000000,
         diseaseSurgery: 7000000,
         surgery: 7000000,
@@ -677,6 +762,13 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
           name: '리빙케어보험금 (중대한 질병 및 수술)',
           amount: 56000000,
           reason: 'CI(중대한 암/뇌졸중/심근경색) 조건부 지급으로 순수 일반 진단비에서 제외',
+          targetCategory: 'cancer',
+        },
+        {
+          name: '중대한수술특약 (관상동맥우회술, 대동맥류 등)',
+          amount: 10000000,
+          reason: '특정 8대 중대한 수술 한정 조건부 수술비로 일반 질병수술비에서 제외',
+          targetCategory: 'diseaseSurgery',
         },
       ],
       limitedCoverageAlert: 'CI(중대한 질병) 한정 특약이 감지되어 순수 진단비에서 분리되었습니다.',

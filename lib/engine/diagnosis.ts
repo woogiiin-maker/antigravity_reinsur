@@ -260,12 +260,20 @@ export function diagnoseInsurance(
 
     // 해당 카테고리에 속하는 제외된 한정보장 필터링
     const excludedForThisCategory = allExcludedCoverages.filter((ex) => {
+      if (ex.targetCategory) return ex.targetCategory === key;
       const name = ex.name.toLowerCase();
-      if (key === 'cancer') return name.includes('암') && !name.includes('유사');
+      if (key === 'cancer') return name.includes('암') && !name.includes('유사') && !name.includes('수술') && !name.includes('치료');
       if (key === 'similarCancer') return name.includes('유사') || name.includes('소액');
+      if (key === 'nonReimbursedCancer') return name.includes('표적') || name.includes('로봇') || (name.includes('항암') && !name.includes('중입자')) || (name.includes('암') && name.includes('치료'));
+      if (key === 'cancerLivingCare') return name.includes('생활') || name.includes('자금');
+      if (key === 'heavyParticle') return name.includes('중입자') || name.includes('양성자');
       if (key === 'brain') return name.includes('뇌') || name.includes('졸중');
       if (key === 'heart') return name.includes('심') || name.includes('경색');
-      if (key === 'injurySurgery' || key === 'diseaseSurgery') return name.includes('수술');
+      if (key === 'injuryDisability') return name.includes('상해') && (name.includes('장해') || name.includes('후유'));
+      if (key === 'diseaseDisability80') return name.includes('질병') && (name.includes('장해') || name.includes('후유'));
+      if (key === 'injurySurgery') return (name.includes('상해') && name.includes('수술')) || name.includes('골절');
+      if (key === 'diseaseSurgery') return (name.includes('질병') || name.includes('암') || name.includes('부인') || name.includes('여성')) && name.includes('수술');
+      if (key === 'circulatoryCare') return name.includes('순환') || name.includes('혈전');
       return false;
     });
 
