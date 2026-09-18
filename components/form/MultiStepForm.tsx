@@ -87,8 +87,15 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({ onComplete }) => {
       const formData = new FormData();
       formData.append('file', file);
 
+      const localApiKey = typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') || '' : '';
+      const headers: Record<string, string> = {};
+      if (localApiKey) {
+        headers['x-gemini-api-key'] = localApiKey;
+      }
+
       const res = await fetch('/api/ocr/parse-policy', {
         method: 'POST',
+        headers,
         body: formData,
       });
 

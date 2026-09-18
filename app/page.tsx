@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { MultiStepForm } from '@/components/form/MultiStepForm';
 import { DiagnosisReportView } from '@/components/report/DiagnosisReportView';
 import { SavedRecordsModal } from '@/components/storage/SavedRecordsModal';
+import { SettingsModal } from '@/components/settings/SettingsModal';
 import { diagnoseInsurance } from '@/lib/engine/diagnosis';
 import { DiagnosisReport, ExistingPolicy, UserProfile } from '@/types/insurance';
 import { createClient } from '@/lib/supabase/client';
@@ -97,20 +98,35 @@ export default function Home() {
     window.history.pushState({ view: 'report' }, '');
   };
 
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+
   return (
     <div className="w-full flex justify-center items-start min-h-screen relative">
-      {/* 우측 상단 플로팅 보관함 버튼 */}
-      <button
-        type="button"
-        onClick={() => {
-          setIsSavedModalOpen(true);
-          window.history.pushState({ modal: 'saved' }, '');
-        }}
-        className="fixed top-3 right-3 sm:right-6 z-40 px-3 py-1.5 bg-white/95 hover:bg-white text-slate-700 hover:text-blue-600 font-bold text-xs rounded-full border border-slate-200 shadow-md flex items-center gap-1.5 transition-all backdrop-blur-xs"
-      >
-        <Bookmark className="w-3.5 h-3.5 text-blue-600" />
-        <span>보관함</span>
-      </button>
+      {/* 우측 상단 플로팅 보관함 & 설정 버튼 모음 */}
+      <div className="fixed top-3 right-3 sm:right-6 z-40 flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => {
+            setIsSettingsOpen(true);
+            window.history.pushState({ modal: 'settings' }, '');
+          }}
+          className="p-1.5 bg-white/95 hover:bg-white text-slate-600 hover:text-slate-900 rounded-full border border-slate-200 shadow-md transition-all backdrop-blur-xs"
+          title="Gemini API 키 설정"
+        >
+          <span className="text-xs">⚙️</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setIsSavedModalOpen(true);
+            window.history.pushState({ modal: 'saved' }, '');
+          }}
+          className="px-3 py-1.5 bg-white/95 hover:bg-white text-slate-700 hover:text-blue-600 font-bold text-xs rounded-full border border-slate-200 shadow-md flex items-center gap-1.5 transition-all backdrop-blur-xs"
+        >
+          <Bookmark className="w-3.5 h-3.5 text-blue-600" />
+          <span>보관함</span>
+        </button>
+      </div>
 
       {/* 진단 결과 뷰 또는 입력 폼 */}
       {report && userProfile ? (
@@ -130,6 +146,12 @@ export default function Home() {
         onLoadRecord={handleLoadRecord}
         currentProfile={userProfile}
         currentReport={report}
+      />
+
+      {/* API 키 설정 모달 */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
     </div>
   );
