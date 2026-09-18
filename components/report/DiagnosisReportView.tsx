@@ -179,43 +179,29 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
   const scoreTheme = getScoreColor(report.scoreGrade);
 
   return (
-    <div className="w-full max-w-mobile mx-auto min-h-screen bg-slate-50 p-4 pb-12 shadow-xl border-x border-slate-200 space-y-5">
-      {/* 최상단 타이틀 바 & 홈 바로가기 */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+    <div className="w-full max-w-md lg:max-w-5xl xl:max-w-6xl mx-auto min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8 pb-12 shadow-xl border-x border-slate-200 space-y-6 lg:rounded-3xl lg:my-6">
+      {/* 최상단 타이틀 바 */}
+      <div className="flex items-center justify-between border-b border-slate-200 pb-4">
         <button
           type="button"
           onClick={onReset}
-          className="flex items-center gap-2 hover:opacity-85 transition-all text-left cursor-pointer group"
-          title="클릭 시 초기 홈 화면으로 이동합니다"
+          className="flex items-center gap-2.5 hover:opacity-85 transition-all text-left cursor-pointer group"
+          title="클릭 시 처음 화면으로 이동합니다"
         >
-          <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-            <HeartPulse className="w-4 h-4" />
+          <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+            <HeartPulse className="w-5 h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-sm sm:text-base font-extrabold text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">
-                건강보험 진단
-              </h1>
-              <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 font-bold rounded-md">
-                홈으로
-              </span>
-            </div>
-            <p className="text-[10.5px] text-slate-500">
+            <h1 className="text-base sm:text-lg font-black text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">
+              건강보험 진단
+            </h1>
+            <p className="text-[11px] text-slate-500">
               만 {profile.age}세 {profile.gender === 'male' ? '남성' : '여성'} 맞춤 리포트
             </p>
           </div>
         </button>
 
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={onReset}
-            type="button"
-            className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs flex items-center gap-1 font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
-            title="처음 홈 화면으로 이동"
-          >
-            <Home className="w-3.5 h-3.5" />
-            <span>홈으로</span>
-          </button>
+        <div className="flex items-center gap-2">
           {onOpenSettings && (
             <button
               onClick={onOpenSettings}
@@ -1071,15 +1057,15 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
         </p>
       </div>
 
-      {/* 최하단 홈으로 가기 (새로운 진단 시작) 버튼 */}
+      {/* 최하단 새로운 진단 시작하기 버튼 */}
       <div className="pt-2">
         <button
           type="button"
           onClick={onReset}
-          className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-98 cursor-pointer"
+          className="w-full py-3.5 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-98 cursor-pointer"
         >
-          <Home className="w-4 h-4" />
-          <span>🏠 처음 화면으로 가기 (홈으로)</span>
+          <RotateCcw className="w-4 h-4 text-blue-400" />
+          <span>새로운 건강보험 진단 시작하기</span>
         </button>
       </div>
     </div>

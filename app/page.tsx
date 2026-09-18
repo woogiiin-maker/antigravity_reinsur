@@ -107,7 +107,7 @@ export default function Home() {
   };
 
   return (
-    <div className="w-full flex justify-center items-start min-h-screen relative">
+    <div className="w-full min-h-screen bg-slate-100/70 flex justify-center items-start py-0 sm:py-6 px-0 sm:px-4 relative">
       {/* 진단 결과 뷰 또는 입력 폼 */}
       {report && userProfile ? (
         <DiagnosisReportView

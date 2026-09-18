@@ -77,31 +77,8 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
   } | null>(null);
   const [showManualAgeInput, setShowManualAgeInput] = useState<boolean>(false);
 
-  // 등록된 기존 가입 보험 증권 목록 (기본 1건 탑재, 복수 개 등록 가능)
-  const [existingPolicies, setExistingPolicies] = useState<ExistingPolicy[]>([
-    {
-      id: 'default-policy-1',
-      insurerName: '현대해상',
-      policyName: '굿앤굿 퍼펙트 건강보험',
-      monthlyPremium: 65000,
-      coverageDetails: {
-        cancer: 30000000,
-        brain: 10000000,
-        heart: 10000000,
-        surgery: 5000000,
-        indemnity: true,
-      },
-      documentUrl: '기본 등록 증권',
-      excludedLimitedCoverages: [
-        {
-          name: '여성특정암(자궁/난소) 진단비',
-          amount: 20000000,
-          reason: '일반암 전체 미보장 / 부위 한정으로 순수 암진단비에서 제외',
-        },
-      ],
-      limitedCoverageAlert: '특정 부위 한정 보장 특약이 감지되어 순수 일반 진단비에서 분리되었습니다.',
-    },
-  ]);
+  // 등록된 기존 가입 보험 증권 목록 (초기에는 빈 배열, 업로드 시에만 표시)
+  const [existingPolicies, setExistingPolicies] = useState<ExistingPolicy[]>([]);
 
   // 가족력 칩 토글
   const toggleFamilyDisease = (id: string) => {
@@ -264,43 +241,26 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
 
 
   return (
-    <div className="w-full max-w-mobile mx-auto min-h-screen bg-slate-50 flex flex-col justify-between p-4 shadow-xl border-x border-slate-200">
+    <div className="w-full max-w-md lg:max-w-5xl xl:max-w-6xl mx-auto min-h-screen bg-slate-50 flex flex-col justify-between p-4 sm:p-6 lg:p-8 shadow-xl border-x border-slate-200 lg:rounded-3xl lg:my-6">
       {/* 상단 네비게이션 & 스텝 프로그레스 */}
       <div>
-        <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-200">
           <button
             type="button"
             onClick={() => setStep(1)}
             className="flex items-center gap-2 hover:opacity-85 transition-all text-left cursor-pointer group"
-            title="클릭 시 처음(홈)으로 이동합니다"
+            title="클릭 시 처음 화면으로 이동합니다"
           >
-            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-              <HeartPulse className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+              <HeartPulse className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-1">
-                <h1 className="text-sm sm:text-base font-extrabold text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">
-                  건강보험 진단
-                </h1>
-                {step > 1 && (
-                  <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 font-bold rounded">
-                    홈으로
-                  </span>
-                )}
-              </div>
+              <h1 className="text-base sm:text-lg font-black text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">
+                건강보험 진단
+              </h1>
             </div>
           </button>
-          <div className="flex items-center gap-1.5">
-            {step > 1 && (
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold border border-blue-200 shadow-xs flex items-center gap-1 transition-all active:scale-95 cursor-pointer"
-                title="처음 화면으로 돌아가기"
-              >
-                <span>🏠 홈</span>
-              </button>
-            )}
+          <div className="flex items-center gap-2">
             {onOpenSettings && (
               <button
                 type="button"
@@ -520,6 +480,11 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                     </p>
                   </div>
 
+                  {/* PC 2열 반응형 그리드 래퍼 */}
+                  <div className="lg:grid lg:grid-cols-12 lg:gap-6 lg:items-start space-y-4 lg:space-y-0">
+                    {/* 좌측: 업로드 존 & 설정 배너 */}
+                    <div className="lg:col-span-6 xl:col-span-7 space-y-4">
+
                   {/* 증권 파일 다중 업로드 존 */}
                   <div
                     onDragOver={handleDragOver}
@@ -592,7 +557,10 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                       </button>
                     </div>
                   )}
+                </div>
 
+                {/* 우측: 인식 결과 배너, 등록된 증권 목록 및 나이/성별 조정 */}
+                <div className="lg:col-span-6 xl:col-span-5 space-y-4">
                   {/* 증권 자동 인식 완료 배너 및 즉시 진단 버튼 */}
                   {autoDetectedAlert && (
                     <motion.div
@@ -1005,7 +973,9 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                     )}
                   </div>
                 </div>
-              )}
+              </div>
+            </div>
+          )}
             </motion.div>
           )}
 
