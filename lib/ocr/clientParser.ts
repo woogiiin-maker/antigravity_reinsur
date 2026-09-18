@@ -1,11 +1,13 @@
 import { ExistingPolicy, ExcludedLimitedCoverage, COVERAGE_CATEGORIES, MatchedRiderDetail, CoverageKey } from '@/types/insurance';
 
 const STRICT_OCR_PROMPT = `
-당신은 대한민국 최고의 보험 증권 전문 심사 분석관입니다.
-이 문서는 대한민국 보험 가입 증권, 청약서, 또는 보장내역서입니다.
+당신은 대한민국 최고의 보험 증권 및 가입제안서 전문 심사 분석관입니다.
+이 문서는 대한민국 보험 가입 증권, 가입제안서, 설계 견적서, 청약서, 또는 보장내역서입니다.
 아래의 [엄격한 보장 범위 심사 원칙]을 반드시 적용하여 분석하고, 순수한 JSON 형식으로만 반환해 주세요.
 
-[필수 피보험자 정보 추출 원칙 - 매우 중요]
+[필수 기본 정보 및 보험료 추출 원칙]
+0. 월 납입 보험료 ("monthlyPremium"):
+   - 가입제안서 또는 증권의 '합계보험료', '초회보험료', '1회보험료', '할인후초회보험료', '월납보험료'를 정확한 숫자(원 단위)로 추출하세요. (예: 64335, 34726)
 1. 피보험자 성명 ("insuredName"):
    - 증권의 '피보험자', '보험대상자', '계약자' 란의 성명을 정확히 추출하세요. (예: "김건형", "김*형" 등)
 2. 피보험자 주민등록번호 및 생년월일 / 나이 ("insuredAge"):
@@ -582,7 +584,41 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
               documentUrl: file.name,
               excludedLimitedCoverages: parsed.excludedLimitedCoverages || [],
               limitedCoverageAlert: parsed.limitedCoverageAlert || undefined,
-              matchedRiders: parsed.matchedRiders || undefined,
+              matchedRiders: (() => {
+                const cov = parsed.coverageDetails || {};
+                const mr: Partial<Record<keyof typeof COVERAGE_CATEGORIES, MatchedRiderDetail[]>> = parsed.matchedRiders || {};
+                if (cov.cancer > 0 && !mr.cancer) {
+                  mr.cancer = [{ riderName: '일반암 진단비 담보', amount: Number(cov.cancer), note: '모든 암 확정 진단 시 100% 보장' }];
+                }
+                if (cov.similarCancer > 0 && !mr.similarCancer) {
+                  mr.similarCancer = [{ riderName: '유사/소액암 진단비 담보', amount: Number(cov.similarCancer), note: '유사암 진단 시 보장' }];
+                }
+                if (cov.nonReimbursedCancer > 0 && !mr.nonReimbursedCancer) {
+                  mr.nonReimbursedCancer = [{ riderName: '비급여(전액본인부담 포함) 암 주요치료비 담보', amount: Number(cov.nonReimbursedCancer), note: '비급여 암수술/약물/방사선 종합 주요치료비 보장' }];
+                }
+                if (cov.cancerLivingCare > 0 && !mr.cancerLivingCare) {
+                  mr.cancerLivingCare = [{ riderName: '암 주요치료 생활비 담보', amount: Number(cov.cancerLivingCare), note: '암 치료 시 지속 생활지원금 지급' }];
+                }
+                if (cov.heavyParticle > 0 && !mr.heavyParticle) {
+                  mr.heavyParticle = [{ riderName: '항암 중입자·양성자 방사선치료비 담보', amount: Number(cov.heavyParticle), note: '중입자 가속 및 양성자 방사선 치료비 보장' }];
+                }
+                if (cov.brain > 0 && !mr.brain) {
+                  mr.brain = [{ riderName: '뇌혈관질환 진단비 담보', amount: Number(cov.brain), note: '뇌출혈, 뇌경색, 뇌동맥류 등 뇌혈관 질환 전체 보장' }];
+                }
+                if (cov.heart > 0 && !mr.heart) {
+                  mr.heart = [{ riderName: '허혈성심장질환 진단비 담보', amount: Number(cov.heart), note: '협심증 및 급성심근경색증 전체 보장' }];
+                }
+                if (cov.circulatoryCare > 0 && !mr.circulatoryCare) {
+                  mr.circulatoryCare = [{ riderName: '순환계질환 주요치료비 담보', amount: Number(cov.circulatoryCare), note: '순환계 질환 주요치료비 보장' }];
+                }
+                if (cov.injuryDisability > 0 && !mr.injuryDisability) {
+                  mr.injuryDisability = [{ riderName: '상해/재해 후유장해 담보', amount: Number(cov.injuryDisability), note: '상해/재해 후유장해 보장' }];
+                }
+                if (cov.diseaseDisability80 > 0 && !mr.diseaseDisability80) {
+                  mr.diseaseDisability80 = [{ riderName: '질병 80% 이상 고도후유장해 담보', amount: Number(cov.diseaseDisability80), note: '80% 이상 중증 질병후유장해 발생 시 지급' }];
+                }
+                return mr;
+              })(),
             };
           }
         }
@@ -1101,14 +1137,15 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
  */
 export async function parseMultiplePolicyFiles(
   files: File[],
-  onProgress?: (current: number, total: number) => void
+  onProgress?: (current: number, total: number) => void,
+  userApiKey?: string
 ): Promise<ExistingPolicy[]> {
   const total = files.length;
   let completed = 0;
 
   const promises = files.map(async (file) => {
     try {
-      const policy = await parsePolicyFileFast(file);
+      const policy = await parsePolicyFileFast(file, userApiKey);
       completed++;
       if (onProgress) onProgress(completed, total);
       return policy;
