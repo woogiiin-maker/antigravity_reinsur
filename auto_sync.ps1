@@ -4,8 +4,12 @@ param(
     [int]$IntervalSeconds = 180
 )
 
-$gitExe = "C:\Users\cmc\AppData\Local\GitHubDesktop\app-3.6.5\resources\app\git\cmd\git.exe"
-if (-not (Test-Path $gitExe)) {
+$gitCmd = Get-Command git -ErrorAction SilentlyContinue
+if ($gitCmd) {
+    $gitExe = $gitCmd.Source
+} elseif (Test-Path "C:\Users\cmc\AppData\Local\GitHubDesktop\app-3.6.5\resources\app\git\cmd\git.exe") {
+    $gitExe = "C:\Users\cmc\AppData\Local\GitHubDesktop\app-3.6.5\resources\app\git\cmd\git.exe"
+} else {
     $gitExe = "git"
 }
 
