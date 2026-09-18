@@ -16,14 +16,23 @@ import {
   FileCheck,
   Edit3,
   Bookmark,
+  Trash2,
+  Plus,
+  ChevronDown,
+  ChevronUp,
+  FileStack,
+  Layers,
+  Coins,
 } from 'lucide-react';
 import { CoverageDetails, ExistingPolicy, Gender, UserProfile } from '@/types/insurance';
+import { parseMultiplePolicyFiles } from '@/lib/ocr/clientParser';
 
 interface MultiStepFormProps {
   onComplete: (profile: UserProfile, policies: ExistingPolicy[]) => void;
   onOpenSettings?: () => void;
   onOpenSaved?: () => void;
 }
+
 
 const FAMILY_DISEASES = [
   { id: 'cancer', label: '암' },
@@ -50,26 +59,37 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
   // Step 2: 가족력
   const [familyHistory, setFamilyHistory] = useState<string[]>([]);
 
-  // Step 3: 기존 가입 보험 정보 (리모델링 모드)
+  // Step 3: 기존 가입 보험 정보 (다중 증권 지원)
   const [hasExisting, setHasExisting] = useState<boolean>(true);
   const [isUploading, setIsUploading] = useState<boolean>(false);
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null);
 
-  // 파싱 및 수동 수정 가능한 기존 보장 상세
-  const [insurerName, setInsurerName] = useState<string>('현대해상');
-  const [policyName, setPolicyName] = useState<string>('굿앤굿 퍼펙트 건강보험');
-  const [monthlyPremium, setMonthlyPremium] = useState<number>(65000);
-  const [coverages, setCoverages] = useState<CoverageDetails>({
-    cancer: 30000000,
-    brain: 10000000,
-    heart: 10000000,
-    surgery: 5000000,
-    indemnity: true,
-  });
-
-  // 특정 암/질환 한정 보장 제외 내역 및 알림 상태
-  const [excludedCoverages, setExcludedCoverages] = useState<{ name: string; amount: number; reason: string }[]>([]);
-  const [coverageAlert, setCoverageAlert] = useState<string | null>(null);
+  // 등록된 기존 가입 보험 증권 목록 (기본 1건 탑재, 복수 개 등록 가능)
+  const [existingPolicies, setExistingPolicies] = useState<ExistingPolicy[]>([
+    {
+      id: 'default-policy-1',
+      insurerName: '현대해상',
+      policyName: '굿앤굿 퍼펙트 건강보험',
+      monthlyPremium: 65000,
+      coverageDetails: {
+        cancer: 30000000,
+        brain: 10000000,
+        heart: 10000000,
+        surgery: 5000000,
+        indemnity: true,
+      },
+      documentUrl: '기본 등록 증권',
+      excludedLimitedCoverages: [
+        {
+          name: '여성특정암(자궁/난소) 진단비',
+          amount: 20000000,
+          reason: '일반암 전체 미보장 / 부위 한정으로 순수 암진단비에서 제외',
+        },
+      ],
+      limitedCoverageAlert: '특정 부위 한정 보장 특약이 감지되어 순수 일반 진단비에서 분리되었습니다.',
+    },
+  ]);
 
   // 가족력 칩 토글
   const toggleFamilyDisease = (id: string) => {
@@ -85,65 +105,44 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
     }
   };
 
-  // 파일 처리 및 AI 파싱 공통 함수
-  const processFile = async (file: File) => {
-    setUploadedFileName(file.name);
+  // 다중 파일 초고속 병렬 처리 및 AI 파싱 함수
+  const processFiles = async (fileList: FileList | File[]) => {
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
+
     setIsUploading(true);
+    setUploadProgress({ current: 0, total: files.length });
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const localApiKey = typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') || '' : '';
-      const headers: Record<string, string> = {};
-      if (localApiKey) {
-        headers['x-gemini-api-key'] = localApiKey;
-      }
-
-      const res = await fetch('/api/ocr/parse-policy', {
-        method: 'POST',
-        headers,
-        body: formData,
+      const parsed = await parseMultiplePolicyFiles(files, (cur, tot) => {
+        setUploadProgress({ current: cur, total: tot });
       });
 
-      if (res.ok) {
-        const result = await res.json();
-        if (result.data) {
-          const d = result.data;
-          if (d.insurerName) setInsurerName(d.insurerName);
-          if (d.policyName) setPolicyName(d.policyName);
-          if (d.monthlyPremium !== undefined) setMonthlyPremium(Number(d.monthlyPremium));
-          if (d.coverageDetails) {
-            setCoverages({
-              cancer: d.coverageDetails.cancer ?? 0,
-              brain: d.coverageDetails.brain ?? 0,
-              heart: d.coverageDetails.heart ?? 0,
-              surgery: d.coverageDetails.surgery ?? 0,
-              indemnity: Boolean(d.coverageDetails.indemnity),
-            });
+      if (parsed.length > 0) {
+        setExistingPolicies((prev) => {
+          // 기존에 기본 샘플 1개만 있고 아직 사용자가 직접 올린 적 없다면 새 파일들로 교체
+          if (prev.length === 1 && prev[0].id === 'default-policy-1') {
+            return parsed;
           }
-          if (d.excludedLimitedCoverages) {
-            setExcludedCoverages(d.excludedLimitedCoverages);
-          }
-          if (d.limitedCoverageAlert) {
-            setCoverageAlert(d.limitedCoverageAlert);
-          }
-        }
+          return [...prev, ...parsed];
+        });
       }
     } catch (err) {
-      console.error('파일 업로드 분석 오류:', err);
+      console.error('다중 증권 파싱 오류:', err);
     } finally {
       setIsUploading(false);
+      setUploadProgress(null);
     }
   };
 
-  // 파일 선택 인풋 핸들러
+  // 파일 선택 인풋 핸들러 (다중 파일 지원)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) processFile(file);
+    if (e.target.files && e.target.files.length > 0) {
+      processFiles(e.target.files);
+    }
   };
 
-  // 드래그앤드롭 핸들러
+  // 드래그앤드롭 핸들러 (다중 파일 지원)
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -162,11 +161,53 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      processFile(file);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFiles(e.dataTransfer.files);
     }
   };
+
+  // 증권 삭제
+  const handleRemovePolicy = (id?: string) => {
+    if (!id) return;
+    setExistingPolicies((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  // 증권 수동 수정
+  const handleUpdatePolicy = (id: string, updated: Partial<ExistingPolicy>) => {
+    setExistingPolicies((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...updated } : p))
+    );
+  };
+
+  // 신규 증권 직접 추가
+  const handleAddManualPolicy = () => {
+    const newPolicy: ExistingPolicy = {
+      id: `policy-${Date.now()}`,
+      insurerName: '보험사 직접입력',
+      policyName: '추가 건강보험',
+      monthlyPremium: 45000,
+      coverageDetails: {
+        cancer: 30000000,
+        brain: 20000000,
+        heart: 20000000,
+        surgery: 5000000,
+        indemnity: false,
+      },
+      documentUrl: '직접 입력',
+      excludedLimitedCoverages: [],
+    };
+    setExistingPolicies((prev) => [...prev, newPolicy]);
+    setEditingPolicyId(newPolicy.id!);
+  };
+
+  // 전체 합산 통계 계산
+  const totalMonthlyPremium = existingPolicies.reduce((sum, p) => sum + (Number(p.monthlyPremium) || 0), 0);
+  const totalCancer = existingPolicies.reduce((sum, p) => sum + (p.coverageDetails?.cancer || 0), 0);
+  const totalBrain = existingPolicies.reduce((sum, p) => sum + (p.coverageDetails?.brain || 0), 0);
+  const totalHeart = existingPolicies.reduce((sum, p) => sum + (p.coverageDetails?.heart || 0), 0);
+  const totalSurgery = existingPolicies.reduce((sum, p) => sum + (p.coverageDetails?.surgery || 0), 0);
+  const hasIndemnity = existingPolicies.some((p) => p.coverageDetails?.indemnity);
+  const allExcludedCoverages = existingPolicies.flatMap((p) => p.excludedLimitedCoverages || []);
 
   // 최종 제출
   const handleSubmit = () => {
@@ -174,27 +215,15 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
       age: Number(age),
       gender,
       familyHistory: familyHistory.filter((item) => item !== 'none'),
-      hasExistingPolicy: mode === 'remodel' && hasExisting,
+      hasExistingPolicy: mode === 'remodel' && hasExisting && existingPolicies.length > 0,
     };
 
     const policies: ExistingPolicy[] =
-      mode === 'remodel' && hasExisting
-        ? [
-            {
-              insurerName,
-              policyName,
-              coverageDetails: coverages,
-              monthlyPremium,
-              maturityDate: '2055-12-31',
-              documentUrl: uploadedFileName ? `/uploads/${uploadedFileName}` : undefined,
-              excludedLimitedCoverages: excludedCoverages,
-              limitedCoverageAlert: coverageAlert || undefined,
-            },
-          ]
-        : [];
+      mode === 'remodel' && hasExisting ? existingPolicies : [];
 
     onComplete(userProfile, policies);
   };
+
 
   return (
     <div className="w-full max-w-mobile mx-auto min-h-screen bg-slate-50 flex flex-col justify-between p-4 shadow-xl border-x border-slate-200">
@@ -491,13 +520,13 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
 
               {mode === 'remodel' ? (
                 <div className="space-y-4">
-                  {/* 증권 파일 업로드 존 (클릭 및 드래그앤드롭 지원) */}
+                  {/* 증권 파일 다중 업로드 존 (클릭 및 드래그앤드롭 지원) */}
                   <div
                     onDragOver={handleDragOver}
                     onDragEnter={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
-                    className={`relative border-2 border-dashed rounded-2xl p-5 transition-all text-center ${
+                    className={`relative border-2 border-dashed rounded-2xl p-4 transition-all text-center ${
                       isDragging
                         ? 'border-blue-600 bg-blue-100/70 ring-4 ring-blue-300/50'
                         : 'border-blue-300 hover:border-blue-500 bg-blue-50/50 hover:bg-blue-50'
@@ -506,53 +535,94 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                     <label className="flex flex-col items-center justify-center cursor-pointer w-full h-full">
                       <input
                         type="file"
-                        accept="image/*,application/pdf"
+                        multiple
+                        accept="application/pdf,image/*"
                         onChange={handleFileUpload}
                         className="hidden"
                       />
                       {isUploading ? (
-                        <div className="flex flex-col items-center gap-2 py-2">
+                        <div className="flex flex-col items-center gap-2 py-3">
                           <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
                           <span className="text-xs font-bold text-blue-700">
-                            AI가 증권 내역을 정밀 분석 중입니다...
-                          </span>
-                        </div>
-                      ) : uploadedFileName ? (
-                        <div className="flex flex-col items-center gap-1.5 text-blue-700 py-1">
-                          <FileCheck className="w-7 h-7 text-emerald-600" />
-                          <span className="text-xs font-bold truncate max-w-[250px]">
-                            {uploadedFileName} 분석 완료
+                            {uploadProgress
+                              ? `총 ${uploadProgress.total}개 증권 중 ${uploadProgress.current}개 초고속 병렬 분석 중...`
+                              : '증권 내역을 정밀 분석 중입니다...'}
                           </span>
                           <span className="text-[10px] text-slate-400">
-                            다른 파일을 끌어다 놓거나 탭하여 변경 가능
+                            대용량 최적화 엔진 적용 (수초 내 완료)
                           </span>
                         </div>
                       ) : (
-                        <>
-                          <Upload className={`w-8 h-8 mb-2 transition-transform ${isDragging ? 'scale-110 text-blue-700' : 'text-blue-500'}`} />
-                          <span className="text-xs font-bold text-slate-700">
-                            {isDragging ? '여기에 파일을 놓아주세요!' : '보험증권 사진 또는 PDF 드래그 & 업로드'}
+                        <div className="py-2 flex flex-col items-center">
+                          <Upload
+                            className={`w-8 h-8 mb-2 transition-transform ${
+                              isDragging ? 'scale-110 text-blue-700' : 'text-blue-500'
+                            }`}
+                          />
+                          <span className="text-xs font-bold text-slate-800">
+                            {isDragging
+                              ? '여기에 파일들을 놓아주세요!'
+                              : '보험증권 PDF / 사진 한번에 여러 개 업로드'}
                           </span>
-                          <span className="text-[11px] text-slate-400 mt-1">
-                            파일을 끌어다 놓거나 탭하여 선택 (PDF / 이미지 지원)
+                          <span className="text-[11px] text-slate-500 mt-1">
+                            여러 개 증권 PDF를 동시에 드래그하거나 선택할 수 있습니다.
                           </span>
-                        </>
+                          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-blue-600 font-medium bg-white px-2.5 py-1 rounded-full border border-blue-200">
+                            <span>⚡ 대용량 자동 최적화</span>
+                            <span>•</span>
+                            <span>순수 진단비 자동 분류</span>
+                          </div>
+                        </div>
                       )}
                     </label>
                   </div>
 
+                  {/* 등록된 증권 합산 요약 대시보드 */}
+                  <div className="bg-gradient-to-r from-blue-700 to-indigo-800 text-white rounded-2xl p-4 shadow-md space-y-2.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold flex items-center gap-1.5 text-blue-100">
+                        <FileStack className="w-4 h-4 text-blue-300" />
+                        가입 증권 합산 보장 현황 (총 {existingPolicies.length}건)
+                      </span>
+                      <span className="text-sm font-extrabold text-amber-300">
+                        월 {totalMonthlyPremium.toLocaleString()}원
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px] pt-1">
+                      <div className="bg-white/10 p-2 rounded-lg backdrop-blur-xs">
+                        <span className="text-blue-200 block text-[10px]">순수 일반암 합계</span>
+                        <span className="font-bold text-white">{(totalCancer / 10000).toLocaleString()}만원</span>
+                      </div>
+                      <div className="bg-white/10 p-2 rounded-lg backdrop-blur-xs">
+                        <span className="text-blue-200 block text-[10px]">뇌혈관 전체 합계</span>
+                        <span className="font-bold text-white">{(totalBrain / 10000).toLocaleString()}만원</span>
+                      </div>
+                      <div className="bg-white/10 p-2 rounded-lg backdrop-blur-xs">
+                        <span className="text-blue-200 block text-[10px]">허혈성 심장 합계</span>
+                        <span className="font-bold text-white">{(totalHeart / 10000).toLocaleString()}만원</span>
+                      </div>
+                      <div className="bg-white/10 p-2 rounded-lg backdrop-blur-xs">
+                        <span className="text-blue-200 block text-[10px]">실손 / 수술비</span>
+                        <span className="font-bold text-white">
+                          {hasIndemnity ? '실비보유' : '실비없음'} / {(totalSurgery / 10000).toLocaleString()}만
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* 한정 보장 자동 제외 안내 배너 */}
-                  {excludedCoverages.length > 0 && (
+                  {allExcludedCoverages.length > 0 && (
                     <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl space-y-2 text-xs">
                       <div className="flex items-center gap-1.5 font-bold text-rose-800">
                         <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
                         <span>한정 보장 자동 필터링 완료 (순수 일반 진단비 원칙)</span>
                       </div>
                       <p className="text-[11px] text-rose-700 leading-relaxed">
-                        어떤 질병이든 100% 보장하는 순수 진단비 기준에 미달하는 부위·특정질환 한정 특약이 감지되어 진단 대상에서 자동 제외되었습니다:
+                        등록하신 증권에서 부위·특정질환 한정 특약이 감지되어 순수 진단비에서 제외되었습니다:
                       </p>
                       <div className="space-y-1 pt-0.5">
-                        {excludedCoverages.map((ex, idx) => (
+                        {allExcludedCoverages.map((ex, idx) => (
                           <div key={idx} className="bg-white p-2 rounded-xl border border-rose-100 flex flex-col gap-0.5">
                             <div className="flex justify-between items-center">
                               <span className="font-bold text-slate-800 line-through">
@@ -571,116 +641,226 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                     </div>
                   )}
 
-                  {/* 추출/수정 가능한 보장 세부 폼 */}
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  {/* 개별 증권 카드 목록 및 수정/삭제 인터페이스 */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center px-1">
                       <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                        <Edit3 className="w-3.5 h-3.5 text-blue-600" /> 가입 내역 검수 및 직접 수정
+                        <Edit3 className="w-3.5 h-3.5 text-blue-600" /> 개별 가입 증권 내역 ({existingPolicies.length}개)
                       </span>
-                      <span className="text-[11px] text-slate-400">직접 수정 가능</span>
+                      <button
+                        type="button"
+                        onClick={handleAddManualPolicy}
+                        className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>직접 증권 추가</span>
+                      </button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <label className="text-slate-500 font-medium">보험사</label>
-                        <input
-                          type="text"
-                          value={insurerName}
-                          onChange={(e) => setInsurerName(e.target.value)}
-                          className="w-full mt-1 p-2 border border-slate-200 rounded-lg font-semibold text-slate-800"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-slate-500 font-medium">월 납입 보험료(원)</label>
-                        <input
-                          type="number"
-                          step={1000}
-                          value={monthlyPremium}
-                          onChange={(e) => setMonthlyPremium(Number(e.target.value))}
-                          className="w-full mt-1 p-2 border border-slate-200 rounded-lg font-semibold text-slate-800"
-                        />
-                      </div>
-                    </div>
+                    {existingPolicies.map((pol, idx) => {
+                      const isEditing = editingPolicyId === pol.id;
+                      return (
+                        <div
+                          key={pol.id || idx}
+                          className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden transition-all"
+                        >
+                          {/* 증권 헤더 요약 */}
+                          <div className="p-3.5 flex justify-between items-start gap-2">
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-bold bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">
+                                  {pol.insurerName}
+                                </span>
+                                <h4 className="text-xs font-bold text-slate-800">
+                                  {pol.policyName}
+                                </h4>
+                              </div>
+                              <div className="flex flex-wrap gap-1 mt-2 text-[10px]">
+                                <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded">
+                                  암 {((pol.coverageDetails?.cancer || 0) / 10000).toLocaleString()}만
+                                </span>
+                                <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded">
+                                  뇌 {((pol.coverageDetails?.brain || 0) / 10000).toLocaleString()}만
+                                </span>
+                                <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded">
+                                  심장 {((pol.coverageDetails?.heart || 0) / 10000).toLocaleString()}만
+                                </span>
+                                <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded">
+                                  수술 {((pol.coverageDetails?.surgery || 0) / 10000).toLocaleString()}만
+                                </span>
+                                {pol.coverageDetails?.indemnity && (
+                                  <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-bold">
+                                    실손
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-1.5 shrink-0">
+                              <span className="text-xs font-extrabold text-blue-600">
+                                {pol.monthlyPremium.toLocaleString()}원/월
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingPolicyId(isEditing ? null : pol.id!)}
+                                  className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded transition-colors"
+                                >
+                                  {isEditing ? '완료' : '수정'}
+                                </button>
+                                {existingPolicies.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemovePolicy(pol.id)}
+                                    className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                                    title="증권 삭제"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
 
-                    <div className="space-y-2 pt-1">
-                      <div className="flex justify-between items-center">
-                        <label className="text-slate-500 text-xs font-medium">주요 보장 가입금액</label>
-                        <span className="text-[10px] text-blue-600 font-medium">※ 순수 일반 진단비만 인정</span>
-                      </div>
-                      <div className="space-y-1.5 text-xs">
-                        <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-slate-700">암 진단비</span>
-                            <span className="text-[10px] text-blue-700 bg-blue-100 px-1 py-0.5 rounded font-medium">순수 일반암</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              step={5000000}
-                              value={coverages.cancer}
-                              onChange={(e) =>
-                                setCoverages({ ...coverages, cancer: Number(e.target.value) })
-                              }
-                              className="w-24 text-right p-1 font-bold border border-slate-200 rounded"
-                            />
-                            <span className="text-slate-500">원</span>
-                          </div>
-                        </div>
+                          {/* 개별 증권 인라인 수정 모드 */}
+                          {isEditing && (
+                            <div className="p-3.5 bg-slate-50 border-t border-slate-100 space-y-2.5 text-xs">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-[10px] text-slate-500 font-medium">보험사명</label>
+                                  <input
+                                    type="text"
+                                    value={pol.insurerName}
+                                    onChange={(e) =>
+                                      handleUpdatePolicy(pol.id!, { insurerName: e.target.value })
+                                    }
+                                    className="w-full mt-0.5 p-1.5 bg-white border border-slate-200 rounded text-xs font-bold"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] text-slate-500 font-medium">상품명</label>
+                                  <input
+                                    type="text"
+                                    value={pol.policyName}
+                                    onChange={(e) =>
+                                      handleUpdatePolicy(pol.id!, { policyName: e.target.value })
+                                    }
+                                    className="w-full mt-0.5 p-1.5 bg-white border border-slate-200 rounded text-xs font-bold"
+                                  />
+                                </div>
+                              </div>
 
-                        <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-slate-700">뇌혈관 진단비</span>
-                            <span className="text-[10px] text-blue-700 bg-blue-100 px-1 py-0.5 rounded font-medium">뇌혈관 전체</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              step={5000000}
-                              value={coverages.brain}
-                              onChange={(e) =>
-                                setCoverages({ ...coverages, brain: Number(e.target.value) })
-                              }
-                              className="w-24 text-right p-1 font-bold border border-slate-200 rounded"
-                            />
-                            <span className="text-slate-500">원</span>
-                          </div>
-                        </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-[10px] text-slate-500 font-medium">월 납입보험료(원)</label>
+                                  <input
+                                    type="number"
+                                    step={1000}
+                                    value={pol.monthlyPremium}
+                                    onChange={(e) =>
+                                      handleUpdatePolicy(pol.id!, { monthlyPremium: Number(e.target.value) })
+                                    }
+                                    className="w-full mt-0.5 p-1.5 bg-white border border-slate-200 rounded text-xs font-bold"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] text-slate-500 font-medium">실손의료비 가입</label>
+                                  <label className="flex items-center gap-2 mt-2 font-bold cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={Boolean(pol.coverageDetails?.indemnity)}
+                                      onChange={(e) =>
+                                        handleUpdatePolicy(pol.id!, {
+                                          coverageDetails: {
+                                            ...pol.coverageDetails,
+                                            indemnity: e.target.checked,
+                                          },
+                                        })
+                                      }
+                                      className="w-4 h-4 rounded text-blue-600"
+                                    />
+                                    <span className="text-xs">
+                                      {pol.coverageDetails?.indemnity ? '실비 가입됨' : '미가입'}
+                                    </span>
+                                  </label>
+                                </div>
+                              </div>
 
-                        <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-slate-700">심장질환 진단비</span>
-                            <span className="text-[10px] text-blue-700 bg-blue-100 px-1 py-0.5 rounded font-medium">허혈성 전체</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              step={5000000}
-                              value={coverages.heart}
-                              onChange={(e) =>
-                                setCoverages({ ...coverages, heart: Number(e.target.value) })
-                              }
-                              className="w-24 text-right p-1 font-bold border border-slate-200 rounded"
-                            />
-                            <span className="text-slate-500">원</span>
-                          </div>
+                              {/* 담보별 보장금액 수정 */}
+                              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/60">
+                                <div>
+                                  <label className="text-[10px] text-slate-500">일반암 진단비</label>
+                                  <input
+                                    type="number"
+                                    step={5000000}
+                                    value={pol.coverageDetails?.cancer || 0}
+                                    onChange={(e) =>
+                                      handleUpdatePolicy(pol.id!, {
+                                        coverageDetails: {
+                                          ...pol.coverageDetails,
+                                          cancer: Number(e.target.value),
+                                        },
+                                      })
+                                    }
+                                    className="w-full mt-0.5 p-1.5 bg-white border border-slate-200 rounded text-xs font-bold"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] text-slate-500">뇌혈관질환 진단비</label>
+                                  <input
+                                    type="number"
+                                    step={5000000}
+                                    value={pol.coverageDetails?.brain || 0}
+                                    onChange={(e) =>
+                                      handleUpdatePolicy(pol.id!, {
+                                        coverageDetails: {
+                                          ...pol.coverageDetails,
+                                          brain: Number(e.target.value),
+                                        },
+                                      })
+                                    }
+                                    className="w-full mt-0.5 p-1.5 bg-white border border-slate-200 rounded text-xs font-bold"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] text-slate-500">허혈성심장 진단비</label>
+                                  <input
+                                    type="number"
+                                    step={5000000}
+                                    value={pol.coverageDetails?.heart || 0}
+                                    onChange={(e) =>
+                                      handleUpdatePolicy(pol.id!, {
+                                        coverageDetails: {
+                                          ...pol.coverageDetails,
+                                          heart: Number(e.target.value),
+                                        },
+                                      })
+                                    }
+                                    className="w-full mt-0.5 p-1.5 bg-white border border-slate-200 rounded text-xs font-bold"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] text-slate-500">질병/상해 수술비</label>
+                                  <input
+                                    type="number"
+                                    step={5000000}
+                                    value={pol.coverageDetails?.surgery || 0}
+                                    onChange={(e) =>
+                                      handleUpdatePolicy(pol.id!, {
+                                        coverageDetails: {
+                                          ...pol.coverageDetails,
+                                          surgery: Number(e.target.value),
+                                        },
+                                      })
+                                    }
+                                    className="w-full mt-0.5 p-1.5 bg-white border border-slate-200 rounded text-xs font-bold"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
-
-                        <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                          <span className="font-semibold text-slate-700">실손의료비</span>
-                          <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
-                            <input
-                              type="checkbox"
-                              checked={coverages.indemnity}
-                              onChange={(e) =>
-                                setCoverages({ ...coverages, indemnity: e.target.checked })
-                              }
-                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
-                            />
-                            <span>{coverages.indemnity ? '가입됨' : '미가입'}</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
+                      );
+                    })}
                   </div>
                 </div>
               ) : (
