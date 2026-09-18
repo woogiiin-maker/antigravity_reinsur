@@ -132,19 +132,23 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
 
       if (parsed.length > 0) {
         // 증권에서 피보험자 나이와 성별 자동 추출 반영 (일괄 동기화된 대표값 사용)
-        const representative = parsed[0];
-        const detectedAge = representative.insuredAge && representative.insuredAge > 0 ? representative.insuredAge : age;
-        const detectedGender = representative.insuredGender || gender;
+        const representativeWithAge = parsed.find((p) => p.insuredAge && p.insuredAge > 0);
+        const representativeWithGender = parsed.find((p) => p.insuredGender && !p.isGenderUnknown);
+        const representativeWithName = parsed.find((p) => p.insuredName && p.insuredName.trim().length > 1);
+
+        const detectedAge = representativeWithAge?.insuredAge || parsed[0]?.insuredAge || age;
+        const detectedGender = representativeWithGender?.insuredGender || parsed[0]?.insuredGender || gender;
+        const detectedName = representativeWithName?.insuredName || parsed[0]?.insuredName;
 
         setAge(detectedAge);
         setGender(detectedGender);
 
         setAutoDetectedAlert({
-          name: representative.insuredName,
+          name: detectedName,
           age: detectedAge,
           gender: detectedGender,
-          isGenderUnknown: representative.isGenderUnknown ?? false,
-          genderInferredFrom: representative.genderInferredFrom,
+          isGenderUnknown: !representativeWithGender,
+          genderInferredFrom: representativeWithGender?.genderInferredFrom || parsed[0]?.genderInferredFrom,
           count: parsed.length,
           insurer: parsed[0]?.insurerName || '보험사',
         });
