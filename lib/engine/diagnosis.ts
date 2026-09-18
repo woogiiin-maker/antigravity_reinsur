@@ -268,6 +268,6 @@ export function selectBestProducts(
 
   scored.sort((a, b) => b.score - a.score);
 
-  // 상위 3개 상품 반환
-  return scored.slice(0, 3).map((item) => item.product);
+  // 적합도 점수 순으로 전체 매칭 상품 반환
+  return scored.map((item) => item.product);
 }

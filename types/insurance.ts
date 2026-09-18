@@ -74,10 +74,27 @@ export interface ExistingPolicy {
   limitedCoverageAlert?: string;
 }
 
+export interface CoveragePremiumItem {
+  name: string; // 특약/담보명 (예: '일반암 진단비 (순수 일반암 100%)')
+  coverageAmount: number; // 보장금액 (원)
+  monthlyPremium: number; // 개별 월 보험료 (원)
+  description?: string; // 보장 상세 설명
+  condition?: string; // 보장/감액 조건 (예: '90일 면책, 감액기간 없음')
+}
+
+export interface SubscriptionTerms {
+  paymentPeriod: string; // 납입 및 보장기간 (예: '20년납 90세만기')
+  renewalType: string; // 갱신 유형 (예: '비갱신형')
+  underwriting: string; // 심사 유형 (예: '표준체(건강체) 심사' 또는 '간편고지(3.5.5)')
+  refundType: string; // 환급금 유형 (예: '해약환급금 미지급형 (약 20~30% 할인)')
+  waitingPeriod: string; // 면책 조건 (예: '암 90일 면책 / 뇌·심장 즉시 100%')
+}
+
 export interface InsuranceProduct {
   id: string;
   productName: string;
   insurerName: string;
+  insurerType?: 'non_life' | 'life'; // 손해보험사 | 생명보험사
   targetAgeMin: number;
   targetAgeMax: number;
   targetGender: TargetGender;
@@ -86,7 +103,10 @@ export interface InsuranceProduct {
   monthlyPremiumEstimate: number;
   keyFeatures: string[];
   isActive?: boolean;
+  coverageBreakdown?: CoveragePremiumItem[];
+  subscriptionTerms?: SubscriptionTerms;
 }
+
 
 export interface RecommendationRule {
   id?: string;
