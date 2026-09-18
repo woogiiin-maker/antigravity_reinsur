@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShieldCheck,
@@ -73,14 +73,33 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
   const [proposedPolicies, setProposedPolicies] = useState<ExistingPolicy[]>([]);
   const [isUploadingProposal, setIsUploadingProposal] = useState<boolean>(false);
   const [comparisonResult, setComparisonResult] = useState<ProposedComparisonResult | null>(null);
+  const [hasApiKey, setHasApiKey] = useState<boolean>(false);
 
-  // 제안받은 보험 파일 일괄 처리 로직 (파일 선택 및 드래그앤드롭 공용)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const key =
+        localStorage.getItem('gemini_api_key') ||
+        localStorage.getItem('geminiApiKey') ||
+        localStorage.getItem('GEMINI_API_KEY') ||
+        '';
+      setHasApiKey(Boolean(key && key.trim().length > 10));
+    }
+  }, []);
+
+  // 제안받은 보험 파일 일괄 처리 로직 (파일 선택 및 드래그앤드롭 공용 - Gemini API 정밀 분석 연동)
   const processProposalFiles = async (fileList: FileList | File[]) => {
     const files = Array.from(fileList);
     if (files.length === 0) return;
     setIsUploadingProposal(true);
     try {
-      const parsed = await parseMultiplePolicyFiles(files);
+      const apiKey =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('gemini_api_key') ||
+            localStorage.getItem('geminiApiKey') ||
+            localStorage.getItem('GEMINI_API_KEY') ||
+            ''
+          : '';
+      const parsed = await parseMultiplePolicyFiles(files, undefined, apiKey);
       if (parsed.length > 0) {
         const nextProposed = [...proposedPolicies, ...parsed];
         setProposedPolicies(nextProposed);
@@ -206,19 +225,26 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
 
   const displayedProducts = showAllProducts ? filteredProducts : filteredProducts.slice(0, 3);
 
-  // 레이더 차트용 데이터 가공
-  const radarData = report.coverageGaps.map((g) => ({
-    subject: g.label
-      .replace(' 진단비', '')
-      .replace(' 주요치료비', '')
-      .replace(' 치료비', '')
-      .replace(' 방사선치료비', '')
-      .replace(' 생활비', '')
-      .replace(' 수술비', '')
-      .replace('의료비', ''),
-    충족도: g.fulfillmentRate,
-    기준치: 100,
-  }));
+  // 레이더 차트용 데이터 가공 (보완 전 vs 은은한 붉은색 보완 후 비교 포함)
+  const radarData = report.coverageGaps.map((g) => {
+    const afterGap = comparisonResult?.gapsAfter.find((ag) => ag.category === g.category);
+    const beforeRate = Math.min(g.fulfillmentRate, 120);
+    const afterRate = afterGap ? Math.min(afterGap.fulfillmentRate, 120) : beforeRate;
+    return {
+      subject: g.label
+        .replace(' 진단비', '')
+        .replace(' 주요치료비', '')
+        .replace(' 치료비', '')
+        .replace(' 방사선치료비', '')
+        .replace(' 생활비', '')
+        .replace(' 수술비', '')
+        .replace('의료비', ''),
+      충족도: beforeRate,
+      보완전: beforeRate,
+      보완후: afterRate,
+      기준치: 100,
+    };
+  });
 
   const getScoreColor = (grade: string) => {
     switch (grade) {
@@ -376,25 +402,55 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
         </div>
 
         {/* 레이더 차트 */}
-        <div className="w-full h-52 -my-2">
+        <div className="w-full h-56 -my-2">
           <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={radarData} outerRadius="75%">
+            <RadarChart data={radarData} outerRadius="72%">
               <PolarGrid stroke="#e2e8f0" />
               <PolarAngleAxis
                 dataKey="subject"
                 tick={{ fill: '#475569', fontSize: 11, fontWeight: 600 }}
               />
               <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} stroke="#cbd5e1" />
+
+              {/* 1. 보완 전 그래프: 신뢰감 있는 블루 컬러 */}
               <Radar
-                name="내 보장 충족도"
-                dataKey="충족도"
+                name="보완 전 (기존)"
+                dataKey={comparisonResult ? "보완전" : "충족도"}
                 stroke="#2563eb"
                 fill="#3b82f6"
-                fillOpacity={0.45}
+                fillOpacity={comparisonResult ? 0.35 : 0.45}
+                strokeWidth={2}
               />
+
+              {/* 2. 보완 후 그래프: 사용자가 요청한 '보완전 그래프 위 은은한 붉은색(로즈/코랄)' 오버레이 */}
+              {comparisonResult && (
+                <Radar
+                  name="보완 후 (제안 보완)"
+                  dataKey="보완후"
+                  stroke="#e11d48"
+                  fill="#f43f5e"
+                  fillOpacity={0.28}
+                  strokeWidth={2.5}
+                />
+              )}
             </RadarChart>
           </ResponsiveContainer>
         </div>
+
+        {/* 그래프 범례 (보완 전 파란색 vs 보완 후 은은한 붉은색) */}
+        {comparisonResult && (
+          <div className="flex items-center justify-center gap-3 text-xs font-bold pt-2 pb-1 border-t border-slate-100 flex-wrap">
+            <div className="flex items-center gap-1.5 text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 shadow-2xs">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block shadow-xs" />
+              <span>보완 전 (기존 가입)</span>
+            </div>
+            <span className="text-slate-400 font-extrabold">➔</span>
+            <div className="flex items-center gap-1.5 text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 shadow-2xs">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block shadow-xs" />
+              <span>보완 후 (은은한 붉은색 제안 보완)</span>
+            </div>
+          </div>
+        )}
 
         {/* 카테고리별 상세 프로그레스 및 출처 분해 아코디언 */}
         <div className="space-y-2.5 pt-2">
@@ -479,36 +535,93 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
                                 }`}
                               />
                             </span>
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-slate-400 text-[11px]">
-                                {gap.currentAmount > 0
-                                  ? `${(gap.currentAmount / 10000).toLocaleString()}만원`
-                                  : '0원'}
-                                {' / '}
-                                <span className="text-slate-700 font-bold">
-                                  권장 {(gap.recommendedAmount / 10000).toLocaleString()}만원
-                                </span>
-                              </span>
-                              <span
-                                className={`text-[11px] font-extrabold px-1.5 py-0.5 rounded ${
-                                  isDeficient
-                                    ? 'bg-rose-100 text-rose-700'
-                                    : 'bg-emerald-100 text-emerald-700'
-                                }`}
-                              >
-                                {gap.fulfillmentRate}%
-                              </span>
+                            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                              {(() => {
+                                const afterGap = comparisonResult?.gapsAfter.find((ag) => ag.category === gap.category);
+                                const hasImprovement = afterGap && afterGap.fulfillmentRate > gap.fulfillmentRate;
+                                const afterAmount = afterGap ? afterGap.currentAmount : gap.currentAmount;
+
+                                return (
+                                  <>
+                                    <span className="text-slate-400 text-[11px]">
+                                      {gap.currentAmount > 0
+                                        ? `${(gap.currentAmount / 10000).toLocaleString()}만`
+                                        : '0원'}
+                                      {hasImprovement && (
+                                        <span className="text-rose-600 font-bold ml-1">
+                                          ➔ {(afterAmount / 10000).toLocaleString()}만
+                                        </span>
+                                      )}
+                                      {' / '}
+                                      <span className="text-slate-700 font-bold">
+                                        권장 {(gap.recommendedAmount / 10000).toLocaleString()}만원
+                                      </span>
+                                    </span>
+
+                                    {hasImprovement ? (
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                          {gap.fulfillmentRate}%
+                                        </span>
+                                        <span className="text-slate-400 text-[10px]">➔</span>
+                                        <span className="text-[10.5px] font-extrabold px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 border border-rose-200 shadow-2xs">
+                                          {afterGap.fulfillmentRate}% (+{afterGap.fulfillmentRate - gap.fulfillmentRate}%)
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span
+                                        className={`text-[11px] font-extrabold px-1.5 py-0.5 rounded ${
+                                          isDeficient
+                                            ? 'bg-rose-100 text-rose-700'
+                                            : 'bg-emerald-100 text-emerald-700'
+                                        }`}
+                                      >
+                                        {gap.fulfillmentRate}%
+                                      </span>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </div>
                           </div>
 
-                          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${gap.fulfillmentRate}%` }}
-                              transition={{ duration: 0.5 }}
-                              className={`h-full ${isDeficient ? 'bg-rose-500' : 'bg-blue-600'}`}
-                            />
-                          </div>
+                          {/* 보완 전후 비교 프로그레스 바 (보완 시 파란색 기존 바 위 은은한 붉은색 오버레이) */}
+                          {(() => {
+                            const afterGap = comparisonResult?.gapsAfter.find((ag) => ag.category === gap.category);
+                            const hasImprovement = afterGap && afterGap.fulfillmentRate > gap.fulfillmentRate;
+
+                            if (hasImprovement) {
+                              return (
+                                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden relative">
+                                  {/* 보완 후 전체 게이지 (은은한 붉은색 로즈) */}
+                                  <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${Math.min(afterGap.fulfillmentRate, 100)}%` }}
+                                    transition={{ duration: 0.6 }}
+                                    className="h-full bg-rose-400/90 absolute top-0 left-0"
+                                  />
+                                  {/* 보완 전 기본 게이지 (신뢰감 있는 블루) */}
+                                  <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${Math.min(gap.fulfillmentRate, 100)}%` }}
+                                    transition={{ duration: 0.5 }}
+                                    className="h-full bg-blue-600 absolute top-0 left-0"
+                                  />
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${gap.fulfillmentRate}%` }}
+                                  transition={{ duration: 0.5 }}
+                                  className={`h-full ${isDeficient ? 'bg-rose-500' : 'bg-blue-600'}`}
+                                />
+                              </div>
+                            );
+                          })()}
 
                           {isDeficient && !isExpanded && (
                             <p className="text-[10.5px] text-rose-600 font-medium">{gap.note}</p>
@@ -733,6 +846,36 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
           </div>
         </div>
 
+        {/* Gemini API 키 연동 상태 배너 */}
+        <div className="flex items-center justify-between bg-indigo-50/70 p-2.5 rounded-xl border border-indigo-200 text-xs">
+          <div className="flex items-center gap-2">
+            <div className={`w-2.5 h-2.5 rounded-full ${hasApiKey ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
+            <div>
+              <span className="font-bold text-slate-800 text-[11.5px] block">
+                {hasApiKey ? '✨ Gemini AI 초정밀 판독 엔진 가동 중' : '💡 Gemini API 키 연동 시 초정밀 AI 분석'}
+              </span>
+              <span className="text-[10px] text-slate-500 block">
+                {hasApiKey
+                  ? '업로드된 제안서의 특약 문구를 Google Gemini 1.5/2.0 AI가 정밀 심사합니다.'
+                  : 'API 키를 등록하면 복잡한 가입제안서 PDF도 AI가 글자 하나까지 정밀 분석합니다.'}
+              </span>
+            </div>
+          </div>
+          {onOpenSettings && (
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors shrink-0 ${
+                hasApiKey
+                  ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                  : 'bg-indigo-600 text-white border-indigo-700 hover:bg-indigo-700 shadow-xs'
+              }`}
+            >
+              {hasApiKey ? '키 관리 ⚙️' : '키 등록 ⚙️'}
+            </button>
+          )}
+        </div>
+
         {/* 제안서 업로드 존 & 샘플 추가 버튼 */}
         <div className="space-y-2.5">
           <div
@@ -755,11 +898,18 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
                 className="hidden"
               />
               {isUploadingProposal ? (
-                <div className="flex items-center gap-2 py-3">
+                <div className="flex items-center gap-2.5 py-3">
                   <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                  <span className="text-xs font-bold text-indigo-700">
-                    제안서 보장 내역을 정밀 분석 중입니다...
-                  </span>
+                  <div className="text-left">
+                    <span className="text-xs font-bold text-indigo-900 block">
+                      {hasApiKey
+                        ? 'Gemini AI가 제안서 보장 내역을 초정밀 판독 중입니다...'
+                        : '제안서 보장 내역을 정밀 분석 중입니다...'}
+                    </span>
+                    <span className="text-[10px] text-indigo-600/80 block">
+                      한정·조건부 특약 필터링 및 Before vs After 보완 효과 계산 중
+                    </span>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center py-2">
@@ -891,10 +1041,15 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
 
             {/* 9대 보장 항목별 Before vs After 보완율 비교 표 */}
             <div className="space-y-2 pt-1">
-              <span className="text-[11px] font-bold text-indigo-200 block">
-                항목별 충족도 변화:
-              </span>
-              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-indigo-200">
+                  항목별 충족도 변화:
+                </span>
+                <span className="text-[10px] text-slate-300">
+                  🔵 기존 보장 ➔ 🔴 은은한 붉은색 보완
+                </span>
+              </div>
+              <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
                 {comparisonResult.gapsAfter.map((afterGap) => {
                   const beforeGap = comparisonResult.gapsBefore.find((g) => g.category === afterGap.category);
                   const beforeFulfillment = beforeGap ? beforeGap.fulfillmentRate : 0;
@@ -902,29 +1057,45 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
                   return (
                     <div
                       key={afterGap.category}
-                      className="bg-white/5 p-2 rounded-lg border border-white/10 text-xs flex justify-between items-center"
+                      className="bg-white/5 p-2.5 rounded-xl border border-white/10 text-xs space-y-1.5"
                     >
-                      <div>
-                        <span className="font-bold text-slate-200">{afterGap.label}</span>
-                        <div className="text-[10px] text-slate-400">
-                          기존 {(beforeAmount / 10000).toLocaleString()}만 ➔ 제안후{' '}
-                          {(afterGap.currentAmount / 10000).toLocaleString()}만
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="font-bold text-slate-200">{afterGap.label}</span>
+                          <div className="text-[10px] text-slate-400">
+                            기존 {(beforeAmount / 10000).toLocaleString()}만 ➔ 제안후{' '}
+                            <span className="text-rose-300 font-bold">
+                              {(afterGap.currentAmount / 10000).toLocaleString()}만
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-slate-400">
+                            {beforeFulfillment}%
+                          </span>
+                          <span className="text-[10px] text-slate-400">➔</span>
+                          <span
+                            className={`text-xs font-extrabold px-1.5 py-0.5 rounded ${
+                              afterGap.fulfillmentRate >= 100
+                                ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/50'
+                                : 'bg-rose-500/30 text-rose-300 border border-rose-500/50'
+                            }`}
+                          >
+                            {afterGap.fulfillmentRate}%
+                          </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-slate-400">
-                          {beforeFulfillment}%
-                        </span>
-                        <span className="text-[10px] text-slate-400">➔</span>
-                        <span
-                          className={`text-xs font-extrabold px-1.5 py-0.5 rounded ${
-                            afterGap.fulfillmentRate >= 100
-                              ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/50'
-                              : 'bg-amber-500/30 text-amber-300 border border-amber-500/50'
-                          }`}
-                        >
-                          {afterGap.fulfillmentRate}%
-                        </span>
+
+                      {/* 보완 효과 시각화 바 (파란색 기존 바 위 은은한 붉은색 보완) */}
+                      <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden relative">
+                        <div
+                          style={{ width: `${Math.min(afterGap.fulfillmentRate, 100)}%` }}
+                          className="h-full bg-rose-400/90 absolute top-0 left-0 transition-all duration-500"
+                        />
+                        <div
+                          style={{ width: `${Math.min(beforeFulfillment, 100)}%` }}
+                          className="h-full bg-blue-500 absolute top-0 left-0 transition-all duration-500"
+                        />
                       </div>
                     </div>
                   );
