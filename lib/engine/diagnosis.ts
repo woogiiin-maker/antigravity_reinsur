@@ -9,42 +9,159 @@ import {
   PolicyContribution,
   ProposedComparisonResult,
   UserProfile,
+  AgeGroupStrategyInfo,
 } from '@/types/insurance';
 import { SAMPLE_PRODUCTS } from '@/lib/data/sampleProducts';
 
 /**
- * 나이에 따른 연령대 그룹 판별
+ * 연령대별 보험사 및 유튜브 전문 설계사 공통 권장 설계 전략 및 기준 산출
  */
-export function getAgeGroup(age: number): '20s' | '30_40s' | '50s_plus' {
-  if (age < 30) return '20s';
-  if (age < 50) return '30_40s';
-  return '50s_plus';
+export function getAgeGroupStrategy(age: number): AgeGroupStrategyInfo {
+  if (age < 20) {
+    return {
+      groupLabel: '어린이·청소년 (10대 이하)',
+      strategyTitle: '넓은 보장 한도와 저렴한 보험료 선점 플랜',
+      strategyDesc:
+        '성인 대비 가입 한도가 높고 보험료가 매우 저렴합니다. 나이가 들면 축소되는 뇌혈관·허혈성을 각 3,000만원 이상 최대로 확보하고 100세 만기 비갱신형으로 평생 보장의 뼈대를 완성하는 것을 권장합니다.',
+      sources: '주요 손보사 어린이보험 인수 가이드라인 및 전문 설계 채널 추천',
+    };
+  }
+  if (age < 30) {
+    return {
+      groupLabel: '사회초년생·청년 (20대)',
+      strategyTitle: '비갱신형 선점 및 2대 질환 한도 극대화 플랜',
+      strategyDesc:
+        '보험료가 가장 저렴한 골든타임입니다. 나이가 들면 가입 한도가 축소되는 뇌혈관·허혈성 진단비를 3,000만원까지 확보하고, 일반암 4,000만원을 비갱신형으로 구축해 평생 보험료 부담을 덜어내는 전략입니다.',
+      sources: '유튜브 인기 보험 설계 채널(보부상, 보험탈출, 시그널플래너 등) 20대 표준 설계안',
+    };
+  }
+  if (age < 50) {
+    return {
+      groupLabel: '경제활동·가장 (30~40대)',
+      strategyTitle: '소득 공백(생활비) 방어 및 고액 암진단비 집중 플랜',
+      strategyDesc:
+        '가계 지출과 자녀 양육 부담이 가장 큰 시기입니다. 중대 질환 발병 시 최소 1~2년 치 연봉 수준(5,000만원)의 일반암 진단비를 확보하여 치료 기간의 생활비를 방어하고, 종합 비급여 암치료비(2,000만원)를 결합하는 것이 정석입니다.',
+      sources: '주요 손보사(삼성·현대·DB·KB) 표준 보장 분석 및 유튜브 전문 설계사 공통 권장안',
+    };
+  }
+  if (age < 60) {
+    return {
+      groupLabel: '발병 집중기 (50대)',
+      strategyTitle: '3대 질병 발병 정점 대비 + 비급여 치료비·수술비 강화 플랜',
+      strategyDesc:
+        '암·뇌·심장 발병률이 급격히 치솟는 위험 구간입니다. 진단비 보험료 부담을 고려하여 일반암 4,000만원 수준을 방어선으로 두고, 최신 표적·중입자 치료를 보장하는 비급여 주요치료비와 종수술비를 탄탄히 보강합니다.',
+      sources: '50대 맞춤 리모델링 설계 기준 및 손해보험협회 질환별 진료비 통계',
+    };
+  }
+  return {
+    groupLabel: '시니어·노후기 (60대 이상)',
+    strategyTitle: '가성비 실속형 치료비 및 수술·간병 중심 플랜',
+    strategyDesc:
+      '보험사 인수 한도가 줄고 진단비 보험료가 매우 비싼 시기입니다. 무리한 고액 진단비보다 적은 보험료로 고액 비급여 치료를 해결하는 비급여암 주요치료비와 다빈도 수술비, 간병비 위주로 실속 있게 구성합니다.',
+    sources: '시니어 보험 리모델링 가이드 및 유튜브 노후 보장 분석 기준',
+  };
 }
 
 /**
-/**
- * 2번 그림 기준 12대 핵심 보장 항목별 표준 권장 보장금액 산출
+ * 연령대별(보험사 및 유튜브 전문 설계 기준) 12대 핵심 보장 항목별 맞춤 권장 보장금액 산출
  */
 export function calculateRecommendedCoverages(profile: UserProfile): Record<CoverageKey, number> {
-  // 2026년 최신 기준 2번 그림 표준 권장 금액표 (원 단위)
-  const base: Record<CoverageKey, number> = {
-    cancer: 40_000_000,            // 일반암 진단비: 4,000만
-    similarCancer: 10_000_000,     // 유사암 진단비: 1,000만
-    nonReimbursedCancer: 20_000_000, // 비급여암 주요치료비: 2,000만 (연간 1회)
-    cancerLivingCare: 20_000_000,  // 암주요치료 생활비: 2,000만 (연간 1회)
-    heavyParticle: 50_000_000,     // 항암중입자 방사선치료비: 5,000만
-    brain: 20_000_000,             // 뇌혈관 진단비: 2,000만
-    heart: 20_000_000,             // 허혈성심장질환 진단비: 2,000만
-    injuryDisability: 50_000_000,  // 상해 후유장해: 5,000만 (3% 이상)
-    diseaseDisability80: 20_000_000, // 질병 후유장해: 2,000만 (80% 이상)
-    injurySurgery: 500_000,        // 상해 수술비: 50만 (1~5종 1,000만)
-    diseaseSurgery: 300_000,       // 질병 수술비: 30만 (1~5종 500만)
-    circulatoryCare: 10_000_000,   // 순환계질환 주요치료비: 1,000만
-    surgery: 5_000_000,            // 종수술비 (하위호환)
-    indemnity: 50_000_000,         // 실손의료비
-  };
+  const age = profile.age || 35;
+  let base: Record<CoverageKey, number>;
 
-  // 가족력 가중치 적용
+  if (age < 20) {
+    // 10대 이하 (어린이·청소년 플랜)
+    base = {
+      cancer: 50_000_000,
+      similarCancer: 10_000_000,
+      nonReimbursedCancer: 20_000_000,
+      cancerLivingCare: 20_000_000,
+      heavyParticle: 50_000_000,
+      brain: 30_000_000,
+      heart: 30_000_000,
+      injuryDisability: 100_000_000,
+      diseaseDisability80: 30_000_000,
+      injurySurgery: 500_000,
+      diseaseSurgery: 300_000,
+      circulatoryCare: 10_000_000,
+      surgery: 5_000_000,
+      indemnity: 50_000_000,
+    };
+  } else if (age < 30) {
+    // 20대 (사회초년생·청년 플랜: 비갱신 선점 및 뇌/심장 한도 최대화)
+    base = {
+      cancer: 40_000_000,
+      similarCancer: 10_000_000,
+      nonReimbursedCancer: 20_000_000,
+      cancerLivingCare: 20_000_000,
+      heavyParticle: 50_000_000,
+      brain: 30_000_000,
+      heart: 30_000_000,
+      injuryDisability: 100_000_000,
+      diseaseDisability80: 30_000_000,
+      injurySurgery: 500_000,
+      diseaseSurgery: 300_000,
+      circulatoryCare: 10_000_000,
+      surgery: 5_000_000,
+      indemnity: 50_000_000,
+    };
+  } else if (age < 50) {
+    // 30~40대 (경제활동·가장 플랜: 1~2년치 연봉 수준 암진단비 및 소득공백 방어)
+    base = {
+      cancer: 50_000_000,
+      similarCancer: 10_000_000,
+      nonReimbursedCancer: 20_000_000,
+      cancerLivingCare: 20_000_000,
+      heavyParticle: 50_000_000,
+      brain: 20_000_000,
+      heart: 20_000_000,
+      injuryDisability: 50_000_000,
+      diseaseDisability80: 20_000_000,
+      injurySurgery: 500_000,
+      diseaseSurgery: 300_000,
+      circulatoryCare: 10_000_000,
+      surgery: 5_000_000,
+      indemnity: 50_000_000,
+    };
+  } else if (age < 60) {
+    // 50대 (발병집중기 플랜: 암/뇌/심장 발병 정점 대비 + 비급여 치료비/수술비 조합)
+    base = {
+      cancer: 40_000_000,
+      similarCancer: 10_000_000,
+      nonReimbursedCancer: 20_000_000,
+      cancerLivingCare: 20_000_000,
+      heavyParticle: 50_000_000,
+      brain: 20_000_000,
+      heart: 20_000_000,
+      injuryDisability: 50_000_000,
+      diseaseDisability80: 20_000_000,
+      injurySurgery: 500_000,
+      diseaseSurgery: 300_000,
+      circulatoryCare: 10_000_000,
+      surgery: 5_000_000,
+      indemnity: 50_000_000,
+    };
+  } else {
+    // 60대 이상 (시니어·노후 플랜: 고액 진단비 대신 비급여 치료비 및 수술비 실속 중심)
+    base = {
+      cancer: 30_000_000,
+      similarCancer: 6_000_000,
+      nonReimbursedCancer: 20_000_000,
+      cancerLivingCare: 10_000_000,
+      heavyParticle: 30_000_000,
+      brain: 10_000_000,
+      heart: 10_000_000,
+      injuryDisability: 30_000_000,
+      diseaseDisability80: 10_000_000,
+      injurySurgery: 300_000,
+      diseaseSurgery: 300_000,
+      circulatoryCare: 10_000_000,
+      surgery: 3_000_000,
+      indemnity: 50_000_000,
+    };
+  }
+
+  // 가족력 가중치 적용 (가족력 질환 1.25배 증액)
   const history = profile.familyHistory || [];
 
   if (history.includes('cancer')) {
@@ -333,6 +450,7 @@ export function diagnoseInsurance(
     totalCurrentPremium,
     excludedLimitedCoverages: allExcludedCoverages,
     hasLimitedCoverageRisk,
+    ageGroupStrategy: getAgeGroupStrategy(profile.age),
     createdAt: new Date().toISOString(),
   };
 }

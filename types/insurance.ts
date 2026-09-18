@@ -299,6 +299,13 @@ export interface ProposedComparisonResult {
   aiEvaluation: string;
 }
 
+export interface AgeGroupStrategyInfo {
+  groupLabel: string;
+  strategyTitle: string;
+  strategyDesc: string;
+  sources: string;
+}
+
 export interface DiagnosisReport {
   id?: string;
   userId?: string;
@@ -313,6 +320,6 @@ export interface DiagnosisReport {
   excludedLimitedCoverages?: ExcludedLimitedCoverage[];
   hasLimitedCoverageRisk?: boolean;
   proposedComparison?: ProposedComparisonResult;
+  ageGroupStrategy?: AgeGroupStrategyInfo;
   createdAt?: string;
 }
-

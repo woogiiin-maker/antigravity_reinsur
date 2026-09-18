@@ -44,7 +44,7 @@ import {
   ProposedComparisonResult,
   COVERAGE_CATEGORIES,
 } from '@/types/insurance';
-import { compareProposedPolicies } from '@/lib/engine/diagnosis';
+import { compareProposedPolicies, calculateRecommendedCoverages } from '@/lib/engine/diagnosis';
 import { parseMultiplePolicyFiles } from '@/lib/ocr/clientParser';
 import { Bookmark } from 'lucide-react';
 
@@ -95,27 +95,28 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
     }
   };
 
-  // 제안받은 보험 샘플 1건 빠른 추가 (체험용)
+  // 제안받은 보험 샘플 1건 빠른 추가 (사용자 연령대별 맞춤 권장 기준 동적 적용)
   const handleAddSampleProposal = () => {
+    const rec = calculateRecommendedCoverages(profile);
     const sampleProposal: ExistingPolicy = {
       id: `proposed-${Date.now()}`,
       insurerName: '한화손해보험',
       policyName: 'KB손보 + 현대해상 맞춤 보완 제안서 플랜',
-      monthlyPremium: 43250,
+      monthlyPremium: profile.age >= 50 ? 58200 : profile.age >= 30 ? 43250 : 31500,
       coverageDetails: {
-        cancer: 40000000,
-        similarCancer: 10000000,
-        nonReimbursedCancer: 20000000,
-        cancerLivingCare: 20000000,
-        heavyParticle: 50000000,
-        brain: 20000000,
-        heart: 20000000,
-        injuryDisability: 50000000,
-        diseaseDisability80: 20000000,
-        injurySurgery: 500000,
-        diseaseSurgery: 300000,
-        surgery: 5000000,
-        circulatoryCare: 10000000,
+        cancer: rec.cancer,
+        similarCancer: rec.similarCancer,
+        nonReimbursedCancer: rec.nonReimbursedCancer,
+        cancerLivingCare: rec.cancerLivingCare,
+        heavyParticle: rec.heavyParticle,
+        brain: rec.brain,
+        heart: rec.heart,
+        injuryDisability: rec.injuryDisability,
+        diseaseDisability80: rec.diseaseDisability80,
+        injurySurgery: rec.injurySurgery,
+        diseaseSurgery: rec.diseaseSurgery,
+        surgery: rec.surgery,
+        circulatoryCare: rec.circulatoryCare,
         indemnity: false,
       },
       documentUrl: '제안서 견적',
@@ -128,18 +129,18 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
       ],
       limitedCoverageAlert: '부위 한정 특약이 자동 필터링되었습니다.',
       matchedRiders: {
-        cancer: [{ riderName: 'KB 3,000만 + 현대 1,000만 일반암진단비', amount: 40000000, note: '순수 일반암 100% 진단비 완벽 충족' }],
-        similarCancer: [{ riderName: 'KB 800만 + 현대 200만 유사암진단비', amount: 10000000, note: '갑상선암/경계성종양/제자리암 1,000만원 보장' }],
-        nonReimbursedCancer: [{ riderName: '비급여(전액본인부담 포함) 암 주요치료비Plus(종합병원)', amount: 20000000, note: '3번 그림 기준: 종합병원 비급여 암수술/항암약물/방사선치료 종합 보장 (연간 1회한 2,000만원)' }],
-        cancerLivingCare: [{ riderName: '암주요치료 생활비 담보', amount: 20000000, note: 'KB손보 암 치료 기간 매년 생활비 지급' }],
-        heavyParticle: [{ riderName: '항암 중입자·양성자 방사선치료비', amount: 50000000, note: '중입자가속기 및 양성자치료비 5,000만원 지급' }],
-        brain: [{ riderName: '현대 1,000만 + KB 1,000만 뇌혈관진단비', amount: 20000000, note: '뇌출혈, 뇌경색 등 뇌혈관 질환 전체 보장' }],
-        heart: [{ riderName: '현대 1,000만 + KB 1,000만 허혈성진단비', amount: 20000000, note: '협심증 및 급성심근경색증 전액 보장' }],
-        injuryDisability: [{ riderName: '상해 후유장해(3% 이상)', amount: 50000000, note: '현대해상 3% 이상 상해후유장해' }],
-        diseaseDisability80: [{ riderName: '질병 후유장해(80% 이상)', amount: 20000000, note: 'KB손보 질병특주고도장해' }],
-        injurySurgery: [{ riderName: '현대 1~5종 상해 수술비', amount: 500000, note: '상해 수술비 50만 (1~5종 최대 1,000만원)' }],
-        diseaseSurgery: [{ riderName: '현대 1~5종 질병 수술비', amount: 300000, note: '질병 수술비 30만 (1~5종 최대 500만원)' }],
-        circulatoryCare: [{ riderName: '순환계질환 주요치료비', amount: 10000000, note: 'KB손보 심혈관/뇌혈관 혈전용해 및 스텐트 치료비' }],
+        cancer: [{ riderName: 'KB 3,000만 + 현대 일반암진단비', amount: rec.cancer, note: `만 ${profile.age}세 연령별 권장 일반암 ${(rec.cancer / 10000).toLocaleString()}만원 충족` }],
+        similarCancer: [{ riderName: 'KB 800만 + 현대 유사암진단비', amount: rec.similarCancer, note: `유사암 ${(rec.similarCancer / 10000).toLocaleString()}만원 보장` }],
+        nonReimbursedCancer: [{ riderName: '비급여(전액본인부담 포함) 암 주요치료비Plus(종합병원)', amount: rec.nonReimbursedCancer, note: '3번 그림 기준: 종합병원 비급여 암수술/항암약물/방사선치료 종합 보장 (연간 1회한)' }],
+        cancerLivingCare: [{ riderName: '암주요치료 생활비 담보', amount: rec.cancerLivingCare, note: 'KB손보 암 치료 기간 매년 생활비 지급' }],
+        heavyParticle: [{ riderName: '항암 중입자·양성자 방사선치료비', amount: rec.heavyParticle, note: '중입자가속기 및 양성자치료비 지급' }],
+        brain: [{ riderName: '현대 1,000만 + KB 뇌혈관진단비', amount: rec.brain, note: `뇌출혈, 뇌경색 등 뇌혈관 질환 전체 ${(rec.brain / 10000).toLocaleString()}만원 보장` }],
+        heart: [{ riderName: '현대 1,000만 + KB 허혈성진단비', amount: rec.heart, note: `협심증 및 급성심근경색증 전액 ${(rec.heart / 10000).toLocaleString()}만원 보장` }],
+        injuryDisability: [{ riderName: '상해 후유장해(3% 이상)', amount: rec.injuryDisability || 50000000, note: '3% 이상 상해후유장해' }],
+        diseaseDisability80: [{ riderName: '질병 후유장해(80% 이상)', amount: rec.diseaseDisability80 || 20000000, note: '질병특주고도장해' }],
+        injurySurgery: [{ riderName: '현대 1~5종 상해 수술비', amount: rec.injurySurgery || 500000, note: '상해 수술비 50만 (1~5종 최대 1,000만원)' }],
+        diseaseSurgery: [{ riderName: '현대 1~5종 질병 수술비', amount: rec.diseaseSurgery || 300000, note: '질병 수술비 30만 (1~5종 최대 500만원)' }],
+        circulatoryCare: [{ riderName: '순환계질환 주요치료비', amount: rec.circulatoryCare || 10000000, note: '심혈관/뇌혈관 혈전용해 및 스텐트 치료비' }],
       },
     };
 
@@ -374,6 +375,31 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
             </span>
           </div>
 
+          {/* 연령대별(보험사 및 유튜브 전문 설계 기준) 맞춤 권장 가이드 배너 */}
+          {report.ageGroupStrategy && (
+            <div className="bg-gradient-to-r from-blue-50/90 via-indigo-50/60 to-white p-3.5 rounded-2xl border border-blue-200 shadow-2xs space-y-1.5">
+              <div className="flex items-center justify-between flex-wrap gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="bg-blue-600 text-white text-[10.5px] font-black px-2 py-0.5 rounded-md shadow-xs">
+                    {report.ageGroupStrategy.groupLabel}
+                  </span>
+                  <span className="font-extrabold text-slate-800 text-xs">
+                    {report.ageGroupStrategy.strategyTitle}
+                  </span>
+                </div>
+                <span className="text-[10px] text-blue-700 font-bold bg-white px-2 py-0.5 rounded-full border border-blue-200 shrink-0">
+                  유튜브·보험사 전문가 기준
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-600 leading-relaxed pl-0.5">
+                {report.ageGroupStrategy.strategyDesc}
+              </p>
+              <div className="text-[9.5px] text-slate-400 pl-0.5 flex items-center gap-1">
+                <span>📚 기준 출처: {report.ageGroupStrategy.sources}</span>
+              </div>
+            </div>
+          )}
+
           {/* 2번 그림 기준 3대 보장 그룹별 목록 (암 / 뇌,심장 / 기타) */}
           {(
             [
@@ -429,8 +455,8 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
                                   ? `${(gap.currentAmount / 10000).toLocaleString()}만원`
                                   : '0원'}
                                 {' / '}
-                                <span className="text-slate-600 font-semibold">
-                                  {(gap.recommendedAmount / 10000).toLocaleString()}만원
+                                <span className="text-slate-700 font-bold">
+                                  권장 {(gap.recommendedAmount / 10000).toLocaleString()}만원
                                 </span>
                               </span>
                               <span
