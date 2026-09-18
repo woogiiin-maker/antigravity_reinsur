@@ -45,7 +45,7 @@ import {
   COVERAGE_CATEGORIES,
 } from '@/types/insurance';
 import { compareProposedPolicies, calculateRecommendedCoverages } from '@/lib/engine/diagnosis';
-import { parseMultiplePolicyFiles } from '@/lib/ocr/clientParser';
+import { parseMultiplePolicyFiles, generateSecureId } from '@/lib/ocr/clientParser';
 import { Bookmark } from 'lucide-react';
 
 interface DiagnosisReportViewProps {
@@ -148,7 +148,7 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
   const handleAddSampleProposal = () => {
     const rec = calculateRecommendedCoverages(profile);
     const sampleProposal: ExistingPolicy = {
-      id: `proposed-${Date.now()}`,
+      id: generateSecureId('proposed'),
       insurerName: '한화손해보험',
       policyName: 'KB손보 + 현대해상 맞춤 보완 제안서 플랜',
       monthlyPremium: profile.age >= 50 ? 58200 : profile.age >= 30 ? 43250 : 31500,

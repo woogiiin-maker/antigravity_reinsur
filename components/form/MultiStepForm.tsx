@@ -25,7 +25,7 @@ import {
   Coins,
 } from 'lucide-react';
 import { CoverageDetails, ExistingPolicy, Gender, UserProfile } from '@/types/insurance';
-import { parseMultiplePolicyFiles } from '@/lib/ocr/clientParser';
+import { parseMultiplePolicyFiles, generateSecureId } from '@/lib/ocr/clientParser';
 
 interface MultiStepFormProps {
   onComplete: (profile: UserProfile, policies: ExistingPolicy[]) => void;
@@ -197,7 +197,7 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
   // 신규 증권 직접 추가
   const handleAddManualPolicy = () => {
     const newPolicy: ExistingPolicy = {
-      id: `policy-${Date.now()}`,
+      id: generateSecureId('policy'),
       insurerName: '보험사 직접입력',
       policyName: '추가 건강보험',
       monthlyPremium: 45000,

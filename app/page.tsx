@@ -17,9 +17,10 @@ export default function Home() {
   const [isSavedModalOpen, setIsSavedModalOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
-  // 모바일 뒤로가기(popstate) 제어: 사이트 이탈 방지
+  // 모바일 뒤로가기(popstate) 제어: 사이트 이탈 방지 및 UI 상태 정합성 보장
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
+      const state = e.state;
       if (isSettingsOpen) {
         setIsSettingsOpen(false);
         return;
@@ -28,7 +29,7 @@ export default function Home() {
         setIsSavedModalOpen(false);
         return;
       }
-      if (report) {
+      if (report && (!state || state.view !== 'report')) {
         setReport(null);
         setUserProfile(null);
         setCurrentPolicies([]);
@@ -38,6 +39,34 @@ export default function Home() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [report, isSavedModalOpen, isSettingsOpen]);
+
+  const openSettings = () => {
+    setIsSettingsOpen(true);
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ modal: 'settings' }, '');
+    }
+  };
+
+  const closeSettings = () => {
+    setIsSettingsOpen(false);
+    if (typeof window !== 'undefined' && window.history.state?.modal === 'settings') {
+      window.history.back();
+    }
+  };
+
+  const openSaved = () => {
+    setIsSavedModalOpen(true);
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ modal: 'saved' }, '');
+    }
+  };
+
+  const closeSaved = () => {
+    setIsSavedModalOpen(false);
+    if (typeof window !== 'undefined' && window.history.state?.modal === 'saved') {
+      window.history.back();
+    }
+  };
 
   const handleFormComplete = async (profile: UserProfile, policies: ExistingPolicy[]) => {
     const generatedReport = diagnoseInsurance(profile, policies);
@@ -98,12 +127,18 @@ export default function Home() {
   const handleReset = () => {
     setReport(null);
     setUserProfile(null);
+    setCurrentPolicies([]);
+    if (typeof window !== 'undefined' && window.history.state?.view === 'report') {
+      window.history.back();
+    }
   };
 
   const handleLoadRecord = (profile: UserProfile, savedReport: DiagnosisReport) => {
     setUserProfile(profile);
     setReport(savedReport);
-    window.history.pushState({ view: 'report' }, '');
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ view: 'report' }, '');
+    }
   };
 
   return (
@@ -115,21 +150,21 @@ export default function Home() {
           profile={userProfile}
           existingPolicies={currentPolicies}
           onReset={handleReset}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenSaved={() => setIsSavedModalOpen(true)}
+          onOpenSettings={openSettings}
+          onOpenSaved={openSaved}
         />
       ) : (
         <MultiStepForm
           onComplete={handleFormComplete}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenSaved={() => setIsSavedModalOpen(true)}
+          onOpenSettings={openSettings}
+          onOpenSaved={openSaved}
         />
       )}
 
       {/* 가족별 진단 결과 보관함 모달 */}
       <SavedRecordsModal
         isOpen={isSavedModalOpen}
-        onClose={() => setIsSavedModalOpen(false)}
+        onClose={closeSaved}
         onLoadRecord={handleLoadRecord}
         currentProfile={userProfile}
         currentReport={report}
@@ -138,7 +173,7 @@ export default function Home() {
       {/* API 키 설정 모달 */}
       <SettingsModal
         isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+        onClose={closeSettings}
       />
     </div>
   );

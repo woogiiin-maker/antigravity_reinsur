@@ -89,12 +89,19 @@ const STRICT_OCR_PROMPT = `
 `;
 
 /**
- * 대용량 파일 사전 최적화 (Base64 변환 시 브라우저 랙 방지)
+ * 암호학적으로 안전한 충돌 방지 고유 ID 생성기
+ */
+export function generateSecureId(prefix: string = 'policy'): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+}
+
+/**
+ * 파일(PDF/이미지)을 Base64 데이터 스트림으로 원형 손상 없이 변환
  */
 async function fileToBase64(file: File): Promise<string> {
-  const maxBytes = 5 * 1024 * 1024;
-  const targetBlob = file.size > maxBytes ? file.slice(0, maxBytes) : file;
-
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -103,7 +110,7 @@ async function fileToBase64(file: File): Promise<string> {
       resolve(base64);
     };
     reader.onerror = (error) => reject(error);
-    reader.readAsDataURL(targetBlob);
+    reader.readAsDataURL(file);
   });
 }
 
@@ -463,7 +470,7 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
   }
 
   return {
-    id: `policy-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    id: generateSecureId('policy'),
     insurerName: insurer,
     policyName: policy,
     insuredName: detectedName,
@@ -512,17 +519,21 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
       : '');
 
   if (apiKey) {
-    const models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash'];
+    const cleanApiKey = apiKey.trim().replace(/[^\w-]/g, '');
+    const models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
     for (const model of models) {
       try {
         const base64Data = await fileToBase64(file);
         const mimeType = file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
 
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
           {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': cleanApiKey,
+            },
             body: JSON.stringify({
               contents: [
                 {
@@ -549,12 +560,17 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
           const json = await response.json();
           const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) {
-            const parsed = JSON.parse(text);
+            // 마크다운 코드블록(```json ... ```) 안전 스트립 (SyntaxError 방지)
+            const cleanedText = text
+              .replace(/^```(?:json)?\s*/i, '')
+              .replace(/\s*```$/i, '')
+              .trim();
+            const parsed = JSON.parse(cleanedText);
             const rawAge = Number(parsed.insuredAge);
-            const validAge = rawAge >= 15 && rawAge <= 90 ? rawAge : undefined;
+            const validAge = !isNaN(rawAge) && rawAge >= 0 && rawAge <= 100 ? rawAge : undefined;
 
             return {
-              id: `policy-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+              id: generateSecureId('policy'),
               insurerName: parsed.insurerName || '가입 보험사',
               policyName: parsed.policyName || file.name.replace(/\.[^/.]+$/, ''),
               insuredName: parsed.insuredName || '김건형',
@@ -642,7 +658,7 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
     fileNameLower.includes('o2')
   ) {
     return {
-      id: `policy-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      id: generateSecureId('policy'),
       insurerName: '현대해상',
       policyName: '무배당 현대해상오투(O2)맞춤간편건강보험',
       insuredName: '김건형',
@@ -791,7 +807,7 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
     (fileNameLower.includes('kb') && (fileNameLower.includes('라이프') || fileNameLower.includes('64') || fileNameLower.includes('64335')))
   ) {
     return {
-      id: `policy-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      id: generateSecureId('policy'),
       insurerName: 'KB라이프',
       policyName: 'KB 3.10.5 딱좋은 초경증 건강보험',
       insuredName: '김건형',
@@ -905,7 +921,7 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
     (fileNameLower.includes('kb') && (fileNameLower.includes('손보') || fileNameLower.includes('손해') || fileNameLower.includes('34') || fileNameLower.includes('34726') || fileNameLower.includes('rq26')))
   ) {
     return {
-      id: `policy-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      id: generateSecureId('policy'),
       insurerName: 'KB손해보험',
       policyName: 'KB 3.N.5 슬기로운 간편건강보험Plus',
       insuredName: '김건형',
@@ -993,7 +1009,7 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
       (fileNameLower.includes('삼성') && (fileNameLower.includes('종신') || fileNameLower.includes('134'))))
   ) {
     return {
-      id: `policy-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      id: generateSecureId('policy'),
       insurerName: '삼성생명',
       policyName: '무배당 삼성리빙케어보험 종신형1.4',
       insuredName: '김건형',
@@ -1069,7 +1085,7 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
     fileNameLower.includes('알파플러스')
   ) {
     return {
-      id: `policy-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      id: generateSecureId('policy'),
       insurerName: '메리츠화재',
       policyName: 'New 0808',
       insuredName: '김건형',
