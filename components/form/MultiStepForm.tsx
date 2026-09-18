@@ -350,194 +350,75 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
               transition={{ duration: 0.25 }}
               className="mt-5 space-y-5"
             >
-              <div>
-                <span className="text-xs font-semibold text-blue-600">Step 1</span>
-                <h2 className="text-xl font-bold text-slate-800 mt-1">
-                  보험증권을 올려주세요
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  PDF나 사진을 올리시면 <span className="font-bold text-blue-600">나이와 보장내역이 3초 만에 자동 분석</span>됩니다.
-                </p>
-              </div>
+              {mode === 'new' ? (
+                /* [신규 맞춤 가입 모드] 증권 업로드 없이 직접 나이/성별 입력 */
+                <div className="space-y-6">
+                  <div>
+                    <span className="text-xs font-semibold text-blue-600">Step 1</span>
+                    <h2 className="text-xl font-bold text-slate-800 mt-1">
+                      기본 정보를 알려주세요
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-1">
+                      연령대와 성별에 맞춰 13개 보험사 중 가장 유리한 최적 신규 플랜을 설계합니다.
+                    </p>
+                  </div>
 
-              {/* [Upload-First Hero Zone] 증권 파일 즉시 다중 업로드 존 */}
-              <div
-                onDragOver={handleDragOver}
-                onDragEnter={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={`relative border-2 border-dashed rounded-2xl p-5 transition-all text-center shadow-xs cursor-pointer ${
-                  isDragging
-                    ? 'border-blue-600 bg-blue-100/70 ring-4 ring-blue-300/50'
-                    : 'border-blue-300 hover:border-blue-500 bg-gradient-to-b from-blue-50/70 to-indigo-50/40 hover:bg-blue-50'
-                }`}
-              >
-                <label className="flex flex-col items-center justify-center cursor-pointer w-full h-full">
-                  <input
-                    type="file"
-                    multiple
-                    accept="application/pdf,image/*"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  {isUploading ? (
-                    <div className="flex flex-col items-center gap-2 py-4">
-                      <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                      <span className="text-xs font-bold text-blue-700">
-                        {uploadProgress
-                          ? `총 ${uploadProgress.total}개 증권 중 ${uploadProgress.current}개 초고속 파싱 중...`
-                          : '피보험자 나이 및 핵심 보장 분석 중...'}
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        피보험자 연령/성별 자동 추출 및 9대 핵심 보장 분류 중
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="py-2 flex flex-col items-center">
-                      <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center mb-2 shadow-md shadow-blue-200">
-                        <Upload
-                          className={`w-6 h-6 transition-transform ${
-                            isDragging ? 'scale-125' : ''
-                          }`}
-                        />
-                      </div>
-                      <span className="text-sm font-bold text-slate-800">
-                        {isDragging
-                          ? '여기에 증권을 놓아주세요!'
-                          : '보험증권 PDF / 사진 한번에 여러 개 올리기'}
-                      </span>
-                      <span className="text-[11px] text-slate-500 mt-1 max-w-[280px]">
-                        스마트폰 사진이나 PDF 파일을 드래그하거나 터치하여 선택하세요.
-                      </span>
-                      <div className="mt-3 flex flex-wrap justify-center items-center gap-1.5 text-[10px] text-blue-700 font-semibold bg-white/90 px-3 py-1 rounded-full border border-blue-200">
-                        <span>⚡ 나이·성별 자동 추출</span>
-                        <span>•</span>
-                        <span>남녀특정암 등 한정보장 자동 필터링</span>
-                      </div>
-                    </div>
-                  )}
-                </label>
-              </div>
-
-              {/* 증권 자동 인식 완료 배너 및 즉시 진단 버튼 */}
-              {autoDetectedAlert && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl space-y-3 shadow-sm"
-                >
-                  <div className="flex items-start gap-2.5">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-xs font-bold text-emerald-900">
-                        피보험자 정보와 증권 {autoDetectedAlert.count}건 자동 추출 완료!
-                      </h4>
-                      <p className="text-[11px] text-emerald-800 mt-0.5 leading-relaxed">
-                        증권에서 인식된 피보험자: <span className="font-extrabold text-emerald-950">만 {autoDetectedAlert.age}세 ({autoDetectedAlert.gender === 'male' ? '남성' : '여성'})</span>
-                        <br />
-                        나이 입력 없이 바로 9대 핵심 보장 정밀 진단이 가능합니다.
-                      </p>
+                  {/* 성별 선택 */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-700">성별</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setGender('male')}
+                        className={`py-3 px-4 rounded-xl border-2 text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                          gender === 'male'
+                            ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                        }`}
+                      >
+                        <User className="w-4 h-4" /> 남성
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setGender('female')}
+                        className={`py-3 px-4 rounded-xl border-2 text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                          gender === 'female'
+                            ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                        }`}
+                      >
+                        <User className="w-4 h-4" /> 여성
+                      </button>
                     </div>
                   </div>
 
-                  <div className="flex gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={handleSubmit}
-                      className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                      바로 AI 맞춤 진단 결과 보기
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStep(2)}
-                      className="px-3 py-2.5 bg-white hover:bg-emerald-100/50 text-emerald-800 font-bold text-xs rounded-xl border border-emerald-200 transition-all cursor-pointer"
-                    >
-                      가족력 설정 &gt;
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* 직접 입력 토글 및 수동 나이/성별 선택 영역 */}
-              <div className="border border-slate-200 rounded-2xl bg-white p-3.5 space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setShowManualAgeInput((prev) => !prev)}
-                  className="w-full flex items-center justify-between text-xs font-bold text-slate-700 hover:text-blue-600 transition-colors"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Edit3 className="w-3.5 h-3.5 text-blue-600" />
-                    증권 없이 직접 입력하거나 나이/성별 수정하기
-                  </span>
-                  <span className="text-[11px] text-slate-400 font-normal">
-                    {showManualAgeInput ? '접기 ▲' : `만 ${age}세 / ${gender === 'male' ? '남성' : '여성'} 펼치기 ▼`}
-                  </span>
-                </button>
-
-                {showManualAgeInput && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="pt-2 border-t border-slate-100 space-y-4"
-                  >
-                    {/* 성별 선택 */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700">성별</label>
-                      <div className="grid grid-cols-2 gap-2">
+                  {/* 나이 입력 */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-bold text-slate-700">나이</label>
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setGender('male')}
-                          className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                            gender === 'male'
-                              ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-xs'
-                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                          }`}
+                          onClick={() => setAge((prev) => Math.max(20, prev - 1))}
+                          className="w-6 h-6 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center transition-colors"
                         >
-                          <User className="w-3.5 h-3.5" /> 남성
+                          -
                         </button>
+                        <span className="text-sm font-extrabold text-blue-600 min-w-[55px] text-center">
+                          만 {age}세
+                        </span>
                         <button
                           type="button"
-                          onClick={() => setGender('female')}
-                          className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                            gender === 'female'
-                              ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-xs'
-                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                          }`}
+                          onClick={() => setAge((prev) => Math.min(80, prev + 1))}
+                          className="w-6 h-6 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center transition-colors"
                         >
-                          <User className="w-3.5 h-3.5" /> 여성
+                          +
                         </button>
                       </div>
                     </div>
 
-                    {/* 나이 입력 */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <label className="text-xs font-bold text-slate-700">나이</label>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setAge((prev) => Math.max(20, prev - 1))}
-                            className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center"
-                          >
-                            -
-                          </button>
-                          <span className="text-sm font-extrabold text-blue-600 min-w-[50px] text-center">
-                            만 {age}세
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setAge((prev) => Math.min(80, prev + 1))}
-                            className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* 슬라이더 */}
+                    {/* 슬라이더 및 정확한 눈금 매칭 */}
+                    <div className="relative pt-1 pb-5">
                       <input
                         type="range"
                         min={20}
@@ -545,36 +426,459 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                         step={1}
                         value={age}
                         onChange={(e) => setAge(Number(e.target.value))}
-                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 relative z-10"
                       />
-
-                      {/* 빠른 연령대 선택 칩 */}
-                      <div className="flex justify-between gap-1">
-                        {[
-                          { label: '20대', val: 25 },
-                          { label: '30대', val: 35 },
-                          { label: '40대', val: 45 },
-                          { label: '50대', val: 50 },
-                          { label: '60대', val: 65 },
-                        ].map((p) => (
-                          <button
-                            key={p.label}
-                            type="button"
-                            onClick={() => setAge(p.val)}
-                            className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-all ${
-                              Math.floor(age / 10) * 10 === Math.floor(p.val / 10) * 10
-                                ? 'bg-blue-50 border-blue-500 text-blue-700'
-                                : 'bg-white border-slate-200 text-slate-500'
-                            }`}
-                          >
-                            {p.label}
-                          </button>
-                        ))}
+                      <div className="relative w-full h-4 mt-1">
+                        {[20, 30, 40, 50, 60, 70, 80].map((mark) => {
+                          const percent = ((mark - 20) / (80 - 20)) * 100;
+                          return (
+                            <div
+                              key={mark}
+                              className="absolute -translate-x-1/2 flex flex-col items-center cursor-pointer"
+                              style={{ left: `${percent}%` }}
+                              onClick={() => setAge(mark)}
+                            >
+                              <div className={`w-0.5 h-1.5 ${age === mark ? 'bg-blue-600' : 'bg-slate-300'}`} />
+                              <span
+                                className={`text-[10px] mt-0.5 select-none transition-colors ${
+                                  age === mark ? 'text-blue-600 font-bold' : 'text-slate-400'
+                                }`}
+                              >
+                                {mark}세
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                  </motion.div>
-                )}
-              </div>
+
+                    {/* 빠른 연령대 선택 칩 */}
+                    <div className="flex justify-between gap-1.5">
+                      {[
+                        { label: '20대', val: 25 },
+                        { label: '30대', val: 35 },
+                        { label: '40대', val: 45 },
+                        { label: '50대', val: 50 },
+                        { label: '60대', val: 65 },
+                      ].map((p) => (
+                        <button
+                          key={p.label}
+                          type="button"
+                          onClick={() => setAge(p.val)}
+                          className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg border transition-all ${
+                            Math.floor(age / 10) * 10 === Math.floor(p.val / 10) * 10
+                              ? 'bg-blue-50 border-blue-500 text-blue-700'
+                              : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* [기존 보험 리모델링 모드] 증권 업로드 + 나이 자동인식 + 인식 결과 수정 */
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-xs font-semibold text-blue-600">Step 1</span>
+                    <h2 className="text-xl font-bold text-slate-800 mt-1">
+                      기존 보험증권을 올려주세요
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-1">
+                      PDF나 사진을 올리시면 <span className="font-bold text-blue-600">나이와 보장내역이 3초 만에 자동 분석</span>됩니다.
+                    </p>
+                  </div>
+
+                  {/* 증권 파일 다중 업로드 존 */}
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragEnter={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`relative border-2 border-dashed rounded-2xl p-5 transition-all text-center shadow-xs cursor-pointer ${
+                      isDragging
+                        ? 'border-blue-600 bg-blue-100/70 ring-4 ring-blue-300/50'
+                        : 'border-blue-300 hover:border-blue-500 bg-gradient-to-b from-blue-50/70 to-indigo-50/40 hover:bg-blue-50'
+                    }`}
+                  >
+                    <label className="flex flex-col items-center justify-center cursor-pointer w-full h-full">
+                      <input
+                        type="file"
+                        multiple
+                        accept="application/pdf,image/*"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                      {isUploading ? (
+                        <div className="flex flex-col items-center gap-2 py-4">
+                          <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                          <span className="text-xs font-bold text-blue-700">
+                            {uploadProgress
+                              ? `총 ${uploadProgress.total}개 증권 중 ${uploadProgress.current}개 초고속 분석 중...`
+                              : '피보험자 나이 및 핵심 보장 분석 중...'}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            피보험자 연령/성별 자동 추출 및 9대 핵심 보장 분류 중
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="py-2 flex flex-col items-center">
+                          <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center mb-2 shadow-md shadow-blue-200">
+                            <Upload
+                              className={`w-6 h-6 transition-transform ${
+                                isDragging ? 'scale-125' : ''
+                              }`}
+                            />
+                          </div>
+                          <span className="text-sm font-bold text-slate-800">
+                            {isDragging
+                              ? '여기에 증권을 놓아주세요!'
+                              : '보험증권 PDF / 사진 한번에 여러 개 올리기'}
+                          </span>
+                          <span className="text-[11px] text-slate-500 mt-1 max-w-[280px]">
+                            스마트폰 사진이나 PDF 파일을 드래그하거나 터치하여 선택하세요.
+                          </span>
+                          <div className="mt-3 flex flex-wrap justify-center items-center gap-1.5 text-[10px] text-blue-700 font-semibold bg-white/90 px-3 py-1 rounded-full border border-blue-200">
+                            <span>⚡ 나이·성별 자동 추출</span>
+                            <span>•</span>
+                            <span>남녀특정암 등 한정보장 자동 필터링</span>
+                          </div>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+
+                  {/* 정밀 인식 안내 배너 */}
+                  {onOpenSettings && (
+                    <div className="p-2.5 bg-blue-50/80 border border-blue-200 rounded-xl flex items-center justify-between text-[11px] text-blue-900">
+                      <span>💡 사진/스캔 증권의 AI 인식률을 100%로 높이시려면?</span>
+                      <button
+                        type="button"
+                        onClick={onOpenSettings}
+                        className="font-bold text-blue-700 underline shrink-0 ml-1 cursor-pointer"
+                      >
+                        무료 API키 설정
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 증권 자동 인식 완료 배너 및 즉시 진단 버튼 */}
+                  {autoDetectedAlert && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl space-y-3 shadow-sm"
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="text-xs font-bold text-emerald-900">
+                            피보험자 정보와 증권 {autoDetectedAlert.count}건 자동 추출 완료!
+                          </h4>
+                          <p className="text-[11px] text-emerald-800 mt-0.5 leading-relaxed">
+                            증권에서 인식된 피보험자: <span className="font-extrabold text-emerald-950">만 {age}세 ({gender === 'male' ? '남성' : '여성'})</span>
+                            <br />
+                            실제 내용과 다를 경우 아래에서 금액을 터치하여 바로 수정할 수 있습니다.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleSubmit}
+                          className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                          바로 AI 맞춤 진단 결과 보기
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setStep(2)}
+                          className="px-3 py-2.5 bg-white hover:bg-emerald-100/50 text-emerald-800 font-bold text-xs rounded-xl border border-emerald-200 transition-all cursor-pointer"
+                        >
+                          가족력 설정 &gt;
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* 인식된 증권 목록 및 실시간 금액 확인/수정 섹션 */}
+                  {existingPolicies.length > 0 && (
+                    <div className="border border-slate-200 bg-white rounded-2xl p-3.5 space-y-2.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <FileStack className="w-4 h-4 text-blue-600" />
+                          등록된 증권 ({existingPolicies.length}건)
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          피보험자: 만 {age}세 / {gender === 'male' ? '남성' : '여성'}
+                        </span>
+                      </div>
+
+                      <p className="text-[10.5px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        🔍 인식이 덜 되었거나 수정이 필요한 항목은 아래 증권 카드의 <b>[수정]</b>을 눌러 바로 금액을 고칠 수 있습니다.
+                      </p>
+
+                      <div className="space-y-2 pt-1">
+                        {existingPolicies.map((pol) => {
+                          const isEditing = editingPolicyId === pol.id;
+                          return (
+                            <div
+                              key={pol.id}
+                              className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/50 text-xs"
+                            >
+                              <div className="p-3 flex justify-between items-center">
+                                <div>
+                                  <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                                    <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-extrabold">
+                                      {pol.insurerName}
+                                    </span>
+                                    <span>{pol.policyName}</span>
+                                  </div>
+                                  <div className="text-[11px] text-slate-500 mt-1 flex flex-wrap gap-2">
+                                    <span>월 {Number(pol.monthlyPremium).toLocaleString()}원</span>
+                                    <span>• 암 {(pol.coverageDetails.cancer / 10000).toLocaleString()}만</span>
+                                    <span>• 뇌 {(pol.coverageDetails.brain / 10000).toLocaleString()}만</span>
+                                    <span>• 심 {(pol.coverageDetails.heart / 10000).toLocaleString()}만</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingPolicyId(isEditing ? null : pol.id!)}
+                                    className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded text-[11px] font-bold text-blue-600 transition-colors cursor-pointer"
+                                  >
+                                    {isEditing ? '완료' : '수정'}
+                                  </button>
+                                  {existingPolicies.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemovePolicy(pol.id)}
+                                      className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                                      title="증권 삭제"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* 인라인 수정 폼 */}
+                              {isEditing && (
+                                <div className="p-3 bg-white border-t border-slate-200 space-y-2.5 text-xs">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-[10px] text-slate-500">보험사명</label>
+                                      <input
+                                        type="text"
+                                        value={pol.insurerName}
+                                        onChange={(e) =>
+                                          handleUpdatePolicy(pol.id!, { insurerName: e.target.value })
+                                        }
+                                        className="w-full mt-0.5 p-1.5 bg-slate-50 border border-slate-200 rounded text-xs font-bold"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] text-slate-500">월 보험료(원)</label>
+                                      <input
+                                        type="number"
+                                        step={1000}
+                                        value={pol.monthlyPremium}
+                                        onChange={(e) =>
+                                          handleUpdatePolicy(pol.id!, { monthlyPremium: Number(e.target.value) })
+                                        }
+                                        className="w-full mt-0.5 p-1.5 bg-slate-50 border border-slate-200 rounded text-xs font-bold"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-3 gap-1.5 pt-1">
+                                    <div>
+                                      <label className="text-[10px] text-slate-500">일반암 진단비</label>
+                                      <input
+                                        type="number"
+                                        step={5000000}
+                                        value={pol.coverageDetails.cancer}
+                                        onChange={(e) =>
+                                          handleUpdatePolicy(pol.id!, {
+                                            coverageDetails: {
+                                              ...pol.coverageDetails,
+                                              cancer: Number(e.target.value),
+                                            },
+                                          })
+                                        }
+                                        className="w-full mt-0.5 p-1.5 bg-slate-50 border border-slate-200 rounded text-xs font-bold"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] text-slate-500">뇌혈관 진단비</label>
+                                      <input
+                                        type="number"
+                                        step={5000000}
+                                        value={pol.coverageDetails.brain}
+                                        onChange={(e) =>
+                                          handleUpdatePolicy(pol.id!, {
+                                            coverageDetails: {
+                                              ...pol.coverageDetails,
+                                              brain: Number(e.target.value),
+                                            },
+                                          })
+                                        }
+                                        className="w-full mt-0.5 p-1.5 bg-slate-50 border border-slate-200 rounded text-xs font-bold"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] text-slate-500">허혈심장 진단비</label>
+                                      <input
+                                        type="number"
+                                        step={5000000}
+                                        value={pol.coverageDetails.heart}
+                                        onChange={(e) =>
+                                          handleUpdatePolicy(pol.id!, {
+                                            coverageDetails: {
+                                              ...pol.coverageDetails,
+                                              heart: Number(e.target.value),
+                                            },
+                                          })
+                                        }
+                                        className="w-full mt-0.5 p-1.5 bg-slate-50 border border-slate-200 rounded text-xs font-bold"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingPolicyId(null)}
+                                    className="w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors"
+                                  >
+                                    수정 완료
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 나이/성별 수동 수정 또는 서류 없이 진행하기 토글 */}
+                  <div className="border border-slate-200 rounded-2xl bg-white p-3.5 space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowManualAgeInput((prev) => !prev)}
+                      className="w-full flex items-center justify-between text-xs font-bold text-slate-700 hover:text-blue-600 transition-colors cursor-pointer"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                        피보험자 나이/성별 직접 수정하기
+                      </span>
+                      <span className="text-[11px] text-slate-400 font-normal">
+                        {showManualAgeInput ? '접기 ▲' : `만 ${age}세 / ${gender === 'male' ? '남성' : '여성'} 펼치기 ▼`}
+                      </span>
+                    </button>
+
+                    {showManualAgeInput && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="pt-2 border-t border-slate-100 space-y-4"
+                      >
+                        {/* 성별 선택 */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700">성별</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setGender('male')}
+                              className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                                gender === 'male'
+                                  ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-xs'
+                                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                              }`}
+                            >
+                              <User className="w-3.5 h-3.5" /> 남성
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setGender('female')}
+                              className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                                gender === 'female'
+                                  ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-xs'
+                                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                              }`}
+                            >
+                              <User className="w-3.5 h-3.5" /> 여성
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 나이 입력 */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <label className="text-xs font-bold text-slate-700">나이</label>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setAge((prev) => Math.max(20, prev - 1))}
+                                className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center"
+                              >
+                                -
+                              </button>
+                              <span className="text-sm font-extrabold text-blue-600 min-w-[50px] text-center">
+                                만 {age}세
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setAge((prev) => Math.min(80, prev + 1))}
+                                className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+
+                          <input
+                            type="range"
+                            min={20}
+                            max={80}
+                            step={1}
+                            value={age}
+                            onChange={(e) => setAge(Number(e.target.value))}
+                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                          />
+
+                          <div className="flex justify-between gap-1">
+                            {[
+                              { label: '20대', val: 25 },
+                              { label: '30대', val: 35 },
+                              { label: '40대', val: 45 },
+                              { label: '50대', val: 50 },
+                              { label: '60대', val: 65 },
+                            ].map((p) => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => setAge(p.val)}
+                                className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-all ${
+                                  Math.floor(age / 10) * 10 === Math.floor(p.val / 10) * 10
+                                    ? 'bg-blue-50 border-blue-500 text-blue-700'
+                                    : 'bg-white border-slate-200 text-slate-500'
+                                }`}
+                              >
+                                {p.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
 
