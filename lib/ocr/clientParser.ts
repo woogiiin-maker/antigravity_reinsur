@@ -1,4 +1,4 @@
-import { ExistingPolicy, ExcludedLimitedCoverage } from '@/types/insurance';
+import { ExistingPolicy, ExcludedLimitedCoverage, COVERAGE_CATEGORIES, MatchedRiderDetail, CoverageKey } from '@/types/insurance';
 
 const STRICT_OCR_PROMPT = `
 당신은 대한민국 최고의 보험 증권 전문 심사 분석관입니다.
@@ -319,6 +319,38 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
   // 실손의료비 (실제로 증권 텍스트에 포함되어 있을 때만 true)
   const indemnity = text.includes('실손') || text.includes('실비');
 
+  const matchedRiders: Partial<Record<keyof typeof COVERAGE_CATEGORIES, MatchedRiderDetail[]>> = {};
+  if (cancer > 0) {
+    matchedRiders.cancer = [{ riderName: '일반암 진단비 (순수 일반암 100%)', amount: cancer, note: '모든 암 확정 진단 시 100% 지급' }];
+  }
+  if (brain > 0) {
+    matchedRiders.brain = [{ riderName: '뇌혈관질환 진단비 (I60~I69 전체)', amount: brain, note: '뇌출혈, 뇌경색, 뇌동맥류 등 뇌혈관 질환 전체 보장' }];
+  }
+  if (heart > 0) {
+    matchedRiders.heart = [{ riderName: '허혈성심장질환 진단비 (협심증 포함)', amount: heart, note: '협심증 및 급성심근경색증 전체 보장' }];
+  }
+  if (nonReimbursedCancer > 0) {
+    matchedRiders.nonReimbursedCancer = [{ riderName: '비급여암 주요치료비 및 표적항암 담보', amount: nonReimbursedCancer, note: '비급여 표적/면역항암제 및 신의료기술 치료비' }];
+  }
+  if (cancerLivingCare > 0) {
+    matchedRiders.cancerLivingCare = [{ riderName: '암 주요치료 생활자금 담보', amount: cancerLivingCare, note: '암 치료 시 지속 생활지원금 지급' }];
+  }
+  if (heavyParticle > 0) {
+    matchedRiders.heavyParticle = [{ riderName: '항암 중입자·양성자 방사선치료비 담보', amount: heavyParticle, note: '중입자 가속 및 양성자 방사선 치료비' }];
+  }
+  if (diseaseDisability80 > 0) {
+    matchedRiders.diseaseDisability80 = [{ riderName: '질병 80% 이상 고도후유장해 담보', amount: diseaseDisability80, note: '80% 이상 중증 질병후유장해 발생 시 지급' }];
+  }
+  if (surgery > 0) {
+    matchedRiders.surgery = [{ riderName: '질병·상해 종수술비 (1~5종) 담보', amount: surgery, note: '1~5종 관혈/비관혈 수술비 회당 차등 지급' }];
+  }
+  if (circulatoryCare > 0) {
+    matchedRiders.circulatoryCare = [{ riderName: '순환계질환 주요치료비 (혈전용해 등) 담보', amount: circulatoryCare, note: '뇌·심장 순환계 혈전용해 및 주요 치료비 보장' }];
+  }
+  if (indemnity) {
+    matchedRiders.indemnity = [{ riderName: '상해·질병 입원의료비/통원의료비 담보', amount: 50000000, note: '실제 발생 병원 치료비 실손 보상' }];
+  }
+
   return {
     id: `policy-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     insurerName: insurer,
@@ -347,6 +379,7 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
       excluded.length > 0
         ? '남녀특정암, 뇌졸중/뇌경색, 급성심근경색 등 한정 보장이 감지되어 순수 진단비에서 분리 제외되었습니다.'
         : undefined,
+    matchedRiders,
   };
 }
 
@@ -430,6 +463,7 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
               documentUrl: file.name,
               excludedLimitedCoverages: parsed.excludedLimitedCoverages || [],
               limitedCoverageAlert: parsed.limitedCoverageAlert || undefined,
+              matchedRiders: parsed.matchedRiders || undefined,
             };
           }
         }
@@ -483,6 +517,49 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
         },
       ],
       limitedCoverageAlert: '뇌졸중/심근경색 한정 혈전용해 치료비 및 표적항암 치료비가 감지되었습니다.',
+      matchedRiders: {
+        nonReimbursedCancer: [
+          {
+            riderName: '표적항암약물허가치료(갱신형)(특별약관)담보',
+            amount: 20000000,
+            note: '식약처 허가 표적항암제 투약 치료 시 연간 1회 한도 2,000만원 보장',
+          },
+          {
+            riderName: '암로봇수술(다빈치/레볼루션)(갑상선암/기타피부암제외)담보',
+            amount: 10000000,
+            note: '비급여 최신 다빈치/레볼루션 로봇수술 1회당 1,000만원 보장',
+          },
+          {
+            riderName: '항암방사선치료비(특별약관)담보',
+            amount: 5000000,
+            note: '항암 방사선 치료 시 500만원 보장',
+          },
+          {
+            riderName: '항암약물치료비(특별약관)담보',
+            amount: 5000000,
+            note: '항암 약물 투약 치료 시 500만원 보장',
+          },
+        ],
+        circulatoryCare: [
+          {
+            riderName: '급성뇌경색 혈전용해치료비담보',
+            amount: 5000000,
+            note: '급성 뇌경색 발생 시 혈전용해제 투약 치료비 보장',
+          },
+          {
+            riderName: '급성심근경색 혈전용해치료비담보',
+            amount: 5000000,
+            note: '급성 심근경색 발생 시 혈전용해제 투약 치료비 보장',
+          },
+        ],
+        surgery: [
+          {
+            riderName: '암수술(특별약관)담보',
+            amount: 1000000,
+            note: '암 직접 치료 목적 수술 시 회당 지급',
+          },
+        ],
+      },
     };
   }
 
@@ -523,6 +600,15 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
         },
       ],
       limitedCoverageAlert: '여성특정암 등 특정 부위 한정보장이 감지되어 순수 진단비에서 분리되었습니다.',
+      matchedRiders: {
+        surgery: [
+          {
+            riderName: '부인과질환 및 여성특정질환 수술보장특약',
+            amount: 5000000,
+            note: '여성 만성질환 및 부인과 수술 시 회당 지급',
+          },
+        ],
+      },
     };
   }
 
@@ -563,6 +649,20 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
         },
       ],
       limitedCoverageAlert: 'CI(중대한 질병) 한정 특약이 감지되어 순수 진단비에서 분리되었습니다.',
+      matchedRiders: {
+        surgery: [
+          {
+            riderName: '무파워수술특약 (1~5종 질병/상해)',
+            amount: 14000000,
+            note: '질병 및 상해 1~5종 수술 시 종류별 차등 지급 (최대 1,400만원)',
+          },
+          {
+            riderName: '중대한수술특약 (관상동맥우회술, 대동맥류 등)',
+            amount: 10000000,
+            note: '8대 중대한 수술 시 회당 지급',
+          },
+        ],
+      },
     };
   }
 
@@ -600,6 +700,22 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
       documentUrl: file.name,
       excludedLimitedCoverages: [],
       limitedCoverageAlert: '일반암/뇌/심장 진단비가 미가입된 상태입니다.',
+      matchedRiders: {
+        diseaseDisability80: [
+          {
+            riderName: '질병 80% 이상 고도후유장해담보',
+            amount: 30000000,
+            note: '질병으로 인한 80% 이상 중증 후유장해 발생 시 지급',
+          },
+        ],
+        indemnity: [
+          {
+            riderName: '상해·질병 입원의료비 / 통원의료비 담보',
+            amount: 100000000,
+            note: '0808 표준화 이전 1세대 100% 실손 (자기부담금 0원 보장)',
+          },
+        ],
+      },
     };
   }
 

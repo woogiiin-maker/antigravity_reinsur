@@ -183,18 +183,44 @@ export function diagnoseInsurance(
     for (const p of policies) {
       if (!p.coverageDetails) continue;
       const amt = (p.coverageDetails as any)[key] || 0;
+      const policyMatched = p.matchedRiders?.[key] || [];
+
       if (key === 'indemnity' && p.coverageDetails.indemnity) {
         contributions.push({
           insurerName: p.insurerName,
           policyName: p.policyName,
           amount: recAmt,
           hasIndemnity: true,
+          matchedRiders:
+            policyMatched.length > 0
+              ? policyMatched
+              : [
+                  {
+                    riderName: '상해·질병 입원의료비 / 통원의료비 담보',
+                    amount: recAmt,
+                    note: '병원 실제 발생 치료비 보상 (자기부담금 차감 후 지급)',
+                  },
+                ],
+          riderName: policyMatched[0]?.riderName || '실손의료비 담보',
+          riderNote: policyMatched[0]?.note || '입원/통원 실제 의료비 보상',
         });
       } else if (amt > 0) {
         contributions.push({
           insurerName: p.insurerName,
           policyName: p.policyName,
           amount: amt,
+          matchedRiders:
+            policyMatched.length > 0
+              ? policyMatched
+              : [
+                  {
+                    riderName: `${info.label} 기본/주계약 담보`,
+                    amount: amt,
+                    note: `${p.insurerName} 정규 보장`,
+                  },
+                ],
+          riderName: policyMatched[0]?.riderName || `${info.label} 정규 담보`,
+          riderNote: policyMatched[0]?.note,
         });
       }
     }

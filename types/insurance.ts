@@ -112,6 +112,12 @@ export interface ExcludedLimitedCoverage {
   reason: string;
 }
 
+export interface MatchedRiderDetail {
+  riderName: string; // 구체적 담보/특약명 (예: '표적항암약물허가치료(갱신형)(특별약관)담보')
+  amount: number; // 보장 금액 (원)
+  note?: string; // 보장 설명 (예: '식약처 허가 표적항암제 투약 치료 시 연간 1회 한도 2,000만원 보장')
+}
+
 export interface ExistingPolicy {
   id?: string;
   userId?: string;
@@ -129,6 +135,7 @@ export interface ExistingPolicy {
   rawExtractedData?: any;
   excludedLimitedCoverages?: ExcludedLimitedCoverage[];
   limitedCoverageAlert?: string;
+  matchedRiders?: Partial<Record<CoverageKey, MatchedRiderDetail[]>>; // 핵심 보장별 실제 매칭된 구체적 담보/특약 목록
 }
 
 export interface CoveragePremiumItem {
@@ -181,6 +188,9 @@ export interface PolicyContribution {
   policyName: string;
   amount: number;
   hasIndemnity?: boolean;
+  matchedRiders?: MatchedRiderDetail[]; // 해당 보장에 기여한 구체적 담보/특약 목록
+  riderName?: string; // 대표 담보명
+  riderNote?: string; // 부가 설명
 }
 
 export interface CoverageGap {

@@ -122,6 +122,17 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
         },
       ],
       limitedCoverageAlert: '부위 한정 특약이 자동 필터링되었습니다.',
+      matchedRiders: {
+        cancer: [{ riderName: '통합일반암진단비 (모든 암 100%)', amount: 50000000, note: '원발암/전이암 포함 순수 일반암 보장' }],
+        brain: [{ riderName: '뇌혈관질환진단비 (I60~I69 전체)', amount: 20000000, note: '뇌출혈, 뇌경색 등 뇌혈관 전 질환 보장' }],
+        heart: [{ riderName: '허혈성심장질환진단비', amount: 20000000, note: '협심증 및 급성심근경색증 전액 보장' }],
+        nonReimbursedCancer: [{ riderName: '비급여암 주요치료비(연간 1회한, 5년간)', amount: 100000000, note: '비급여 표적/면역항암제 및 수술비 실손 보상' }],
+        cancerLivingCare: [{ riderName: '암주요치료 생활비 담보', amount: 10000000, note: '암 치료 시 지속 생활자금 지원' }],
+        heavyParticle: [{ riderName: '항암 중입자·양성자 방사선치료비', amount: 30000000, note: '중입자가속기 및 양성자치료비 지급' }],
+        surgery: [{ riderName: '질병·상해 1~5종 종수술비', amount: 5000000, note: '질병 및 상해 수술 시 회당 차등 지급' }],
+        diseaseDisability80: [{ riderName: '질병 80% 이상 고도장해위로금', amount: 50000000, note: '중증 후유장해 발생 시 일시금 지급' }],
+        circulatoryCare: [{ riderName: '순환계질환 주요치료비', amount: 20000000, note: '심혈관/뇌혈관 혈전용해 및 스텐트 삽입술 등 지원' }],
+      },
     };
 
     const nextProposed = [...proposedPolicies, sampleProposal];
@@ -428,32 +439,78 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
                         </div>
                       )}
 
-                      {/* 어느 보험에 얼마가 보장되는지 기여 증권 분해표 */}
+                      {/* 어느 보험에 어떤 세부 특약으로 연결되어 보장되는지 기여 증권 분해표 */}
                       <div>
-                        <span className="text-[11px] font-bold text-slate-700 block mb-1">
-                          🏢 가입 증권별 {gap.label} 보장 내역:
+                        <span className="text-[11px] font-bold text-slate-700 block mb-1.5">
+                          🏢 가입 증권별 {gap.label} 보장 내역 &amp; 연결 특약:
                         </span>
                         {gap.contributions && gap.contributions.length > 0 ? (
-                          <div className="space-y-1">
+                          <div className="space-y-2">
                             {gap.contributions.map((c, idx) => (
                               <div
                                 key={idx}
-                                className="bg-white p-2 rounded-lg border border-slate-200 flex justify-between items-center text-[11px]"
+                                className="bg-white p-2.5 rounded-xl border border-slate-200 text-[11px] space-y-2 shadow-2xs"
                               >
-                                <div className="truncate max-w-[200px]">
-                                  <span className="font-bold text-slate-800">{c.insurerName}</span>
-                                  <span className="text-slate-400 ml-1 text-[10px]">
-                                    ({c.policyName})
+                                <div className="flex justify-between items-center">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-extrabold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded text-[10px] border border-blue-100">
+                                      {c.insurerName}
+                                    </span>
+                                    <span className="font-bold text-slate-800 text-[11px]">
+                                      {c.policyName}
+                                    </span>
+                                  </div>
+                                  <span className="font-black text-blue-600 text-xs shrink-0 ml-2">
+                                    {(c.amount / 10000).toLocaleString()}만원
                                   </span>
                                 </div>
-                                <span className="font-extrabold text-blue-600 shrink-0">
-                                  {(c.amount / 10000).toLocaleString()}만원
-                                </span>
+
+                                {/* 연결된 구체적 담보/특약 목록 상세 박스 */}
+                                <div className="p-2 bg-slate-50 rounded-lg border border-slate-200/80 space-y-1.5">
+                                  <div className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
+                                    <span>🔗 연결된 세부 보장 담보:</span>
+                                  </div>
+                                  {c.matchedRiders && c.matchedRiders.length > 0 ? (
+                                    <div className="space-y-1">
+                                      {c.matchedRiders.map((r, rIdx) => (
+                                        <div
+                                          key={rIdx}
+                                          className="bg-white p-1.5 rounded border border-slate-200 text-[10.5px] flex flex-col gap-0.5"
+                                        >
+                                          <div className="flex justify-between items-center">
+                                            <span className="font-bold text-indigo-950 flex items-center gap-1">
+                                              <span className="text-emerald-600">✔</span> {r.riderName}
+                                            </span>
+                                            <span className="font-extrabold text-indigo-600 text-[10px] shrink-0 ml-2">
+                                              {(r.amount / 10000).toLocaleString()}만원
+                                            </span>
+                                          </div>
+                                          {r.note && (
+                                            <span className="text-[10px] text-slate-500 pl-3 leading-tight">
+                                              {r.note}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="bg-white p-1.5 rounded border border-slate-200 text-[10.5px]">
+                                      <span className="font-bold text-indigo-950 flex items-center gap-1">
+                                        <span className="text-emerald-600">✔</span> {c.riderName || `${gap.label} 기본 담보`}
+                                      </span>
+                                      {c.riderNote && (
+                                        <span className="block text-[10px] text-slate-500 mt-0.5 pl-3 leading-tight">
+                                          {c.riderNote}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <div className="bg-white p-2 rounded-lg border border-slate-200 text-[11px] text-slate-400 text-center">
+                          <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-[11px] text-slate-400 text-center">
                             가입된 증권 중 순수 {gap.label} 전체를 보장하는 계약이 없습니다.
                           </div>
                         )}
