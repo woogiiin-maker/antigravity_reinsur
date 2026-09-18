@@ -1,23 +1,45 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MultiStepForm } from '@/components/form/MultiStepForm';
 import { DiagnosisReportView } from '@/components/report/DiagnosisReportView';
+import { SavedRecordsModal } from '@/components/storage/SavedRecordsModal';
 import { diagnoseInsurance } from '@/lib/engine/diagnosis';
 import { DiagnosisReport, ExistingPolicy, UserProfile } from '@/types/insurance';
 import { createClient } from '@/lib/supabase/client';
+import { Bookmark } from 'lucide-react';
 
 export default function Home() {
   const [report, setReport] = useState<DiagnosisReport | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isSavedModalOpen, setIsSavedModalOpen] = useState<boolean>(false);
+
+  // 모바일 뒤로가기(popstate) 제어: 사이트 이탈 방지
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (isSavedModalOpen) {
+        setIsSavedModalOpen(false);
+        return;
+      }
+      if (report) {
+        setReport(null);
+        setUserProfile(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [report, isSavedModalOpen]);
 
   const handleFormComplete = async (profile: UserProfile, policies: ExistingPolicy[]) => {
-    // 1. 진단 및 리모델링 엔진 실행
     const generatedReport = diagnoseInsurance(profile, policies);
     setUserProfile(profile);
     setReport(generatedReport);
 
-    // 2. Supabase DB 비동기 저장 시도 (환경변수가 설정되어 있고 사용자가 로그인되어 있는 경우)
+    // 브라우저 뒤로가기 히스토리 추가
+    window.history.pushState({ view: 'report' }, '');
+
+    // Supabase 연동 시도
     try {
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
@@ -25,7 +47,6 @@ export default function Home() {
       if (session?.user) {
         const userId = session.user.id;
 
-        // user profile 저장/업데이트
         await (supabase.from('users') as any).upsert({
           id: userId,
           age: profile.age,
@@ -34,7 +55,6 @@ export default function Home() {
           has_existing_policy: profile.hasExistingPolicy,
         });
 
-        // 기존 증권 정보 저장
         if (policies.length > 0) {
           for (const p of policies) {
             await (supabase.from('existing_policies') as any).insert({
@@ -48,7 +68,6 @@ export default function Home() {
           }
         }
 
-        // 진단 리포트 저장
         await (supabase.from('diagnosis_reports') as any).insert({
           user_id: userId,
           total_score: generatedReport.totalScore,
@@ -63,7 +82,6 @@ export default function Home() {
         });
       }
     } catch (err) {
-      // Supabase 연동 미완료 개발 환경에서도 UI 진단 리포트는 정상 동작
       console.log('Supabase 저장 건너뜀 (로컬 진단 모드):', err);
     }
   };
@@ -73,8 +91,28 @@ export default function Home() {
     setUserProfile(null);
   };
 
+  const handleLoadRecord = (profile: UserProfile, savedReport: DiagnosisReport) => {
+    setUserProfile(profile);
+    setReport(savedReport);
+    window.history.pushState({ view: 'report' }, '');
+  };
+
   return (
-    <div className="w-full flex justify-center items-start min-h-screen">
+    <div className="w-full flex justify-center items-start min-h-screen relative">
+      {/* 우측 상단 플로팅 보관함 버튼 */}
+      <button
+        type="button"
+        onClick={() => {
+          setIsSavedModalOpen(true);
+          window.history.pushState({ modal: 'saved' }, '');
+        }}
+        className="fixed top-3 right-3 sm:right-6 z-40 px-3 py-1.5 bg-white/95 hover:bg-white text-slate-700 hover:text-blue-600 font-bold text-xs rounded-full border border-slate-200 shadow-md flex items-center gap-1.5 transition-all backdrop-blur-xs"
+      >
+        <Bookmark className="w-3.5 h-3.5 text-blue-600" />
+        <span>보관함</span>
+      </button>
+
+      {/* 진단 결과 뷰 또는 입력 폼 */}
       {report && userProfile ? (
         <DiagnosisReportView
           report={report}
@@ -84,6 +122,15 @@ export default function Home() {
       ) : (
         <MultiStepForm onComplete={handleFormComplete} />
       )}
+
+      {/* 가족별 진단 결과 보관함 모달 */}
+      <SavedRecordsModal
+        isOpen={isSavedModalOpen}
+        onClose={() => setIsSavedModalOpen(false)}
+        onLoadRecord={handleLoadRecord}
+        currentProfile={userProfile}
+        currentReport={report}
+      />
     </div>
   );
 }
