@@ -7,10 +7,27 @@ param(
 $gitCmd = Get-Command git -ErrorAction SilentlyContinue
 if ($gitCmd) {
     $gitExe = $gitCmd.Source
-} elseif (Test-Path "C:\Users\cmc\AppData\Local\GitHubDesktop\app-3.6.5\resources\app\git\cmd\git.exe") {
-    $gitExe = "C:\Users\cmc\AppData\Local\GitHubDesktop\app-3.6.5\resources\app\git\cmd\git.exe"
 } else {
-    $gitExe = "git"
+    $possibleGitPaths = @(
+        "$env:LOCALAPPDATA\GitHubDesktop\app-*\resources\app\git\cmd\git.exe",
+        "C:\Program Files\Git\cmd\git.exe",
+        "C:\Program Files\Git\bin\git.exe",
+        "$env:LOCALAPPDATA\Programs\Git\cmd\git.exe",
+        "C:\Users\cmc\AppData\Local\GitHubDesktop\app-3.6.5\resources\app\git\cmd\git.exe",
+        "C:\Users\woogiii\AppData\Local\GitHubDesktop\app-3.6.5\resources\app\git\cmd\git.exe"
+    )
+    $found = $false
+    foreach ($pattern in $possibleGitPaths) {
+        $resolved = Resolve-Path $pattern -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($resolved -and (Test-Path $resolved.Path)) {
+            $gitExe = $resolved.Path
+            $found = $true
+            break
+        }
+    }
+    if (-not $found) {
+        $gitExe = "git"
+    }
 }
 
 function Sync-Git {
