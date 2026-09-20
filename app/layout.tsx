@@ -32,6 +32,25 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.__deferredPrompt = null;
+              window.addEventListener('beforeinstallprompt', function(e) {
+                e.preventDefault();
+                window.__deferredPrompt = e;
+                window.dispatchEvent(new CustomEvent('pwa-prompt-ready', { detail: e }));
+              });
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
+        />
+      </head>
       <body className="antialiased bg-slate-100 min-h-screen flex flex-col items-center">
         <PwaRegister />
         <main className="w-full flex justify-center flex-1">
