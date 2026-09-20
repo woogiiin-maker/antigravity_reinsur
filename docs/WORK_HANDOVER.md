@@ -55,6 +55,7 @@
 | **13** | 시니어 품질 & 보안 감사 (Lead Quality & Security Audit) | 1) JSON 마크다운 코드블록 스트립<br>2) API 키 `x-goog-api-key` HTTP 헤더 보안 전송<br>3) Web Crypto UUID 충돌 방지<br>4) 모바일 popstate 히스토리 스택 동기화 | ✅ 완료 |
 | **14** | 태아보험 지원 및 유튜브 전문가·전 보험사 맞춤 추천 엔진 고도화 | 1) 👶 태아 모드(임신 주수, 선천이상/인큐베이터 특약, 30세 vs 100세 계약전환) 신규 지원<br>2) 나이 슬라이더 0~80세 전 생애주기 확장<br>3) 전 보험사(손보 현대/KB/DB/메리츠/삼성/한화/흥국/롯데 + 생보 삼성/한화/신한/라이나) 라인업 구축<br>4) 유튜브 전문 분석 채널 핵심 체크리스트 배너 및 상품별 맞춤 매칭 포인트 시각화 | ✅ 완료 |
 | **15** | 안드로이드 앱스 화면(WebAPK) 원클릭 자동 등록 및 매니페스트 최적화 | 1) 삼성 인터넷 WebAPK 민팅 실패 유발 요소(복합 shortcuts 등) 제거 및 루트 캐노니컬(`id: "/"`, `start_url: "/"`) 최적화<br>2) `layout.tsx` HTML 헤드 레벨 초기 스크립트로 `beforeinstallprompt` 유실 완전 차단<br>3) 복잡한 수동 설정 절차를 전면 제거하고 '터치 한 번으로 앱스 화면 자동 등록' 구현 | ✅ 완료 |
+| **16** | GitHub Pages 배포 서브패스 PWA 경로 수정 및 프리미엄 3D 앱 아이콘 탑재 | 1) `woogiiin-maker.github.io/antigravity_reinsur` 서브패스 환경에서 manifest/sw.js/icons 404 오류 수정<br>2) `next.config.mjs`의 `basePath`를 `layout.tsx`와 `manifest.json`에 상대/동적 경로로 완벽 연동<br>3) 심미적인 3D 블루 & 에메랄드 쉴드·심장박동 프리미엄 앱 아이콘(192px/512px) 신규 제작 및 적용 | ✅ 완료 |
 
 ---
 
