@@ -148,13 +148,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 </div>
                 <div>
                   <h4 className="text-xs font-black text-blue-950 flex items-center gap-1">
-                    <span>앱서랍 / 홈 화면 어플 설치</span>
+                    <span>안드로이드 앱스 화면에 자동 등록</span>
                     <span className="text-[10px] font-bold text-blue-600 bg-white px-1.5 py-0.2 rounded border border-blue-200">
                       PWA
                     </span>
                   </h4>
                   <p className="text-[10.5px] text-slate-600 mt-0.5 leading-tight">
-                    스토어 방문 없이 내 폰의 <b>앱서랍</b>과 <b>홈 화면</b>에 정식 어플로 설치합니다.
+                    스토어 방문 없이 내 폰의 <b>앱스 화면(전체 앱 목록)</b>에 정식 어플로 등록합니다.
                   </p>
                 </div>
               </div>
@@ -164,7 +164,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             {isStandalone || isInstalled ? (
               <div className="w-full py-2.5 px-3 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-center gap-1.5 text-emerald-800 text-xs font-bold shadow-2xs">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>이미 앱서랍에 어플로 등록되어 있습니다 (단독 실행 모드)</span>
+                <span>이미 앱스 화면에 어플로 등록되어 있습니다 (단독 실행 모드)</span>
               </div>
             ) : (
               <div className="space-y-2">
@@ -174,7 +174,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-sm transition-all active:scale-98 cursor-pointer"
                 >
                   <Smartphone className="w-4 h-4" />
-                  <span>📲 터치 한 번으로 앱서랍에 어플 등록하기</span>
+                  <span>📲 터치 한 번으로 앱스 화면에 어플 등록하기</span>
                   <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                 </button>
 
@@ -186,7 +186,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
                 <div className="p-2.5 bg-white/90 border border-blue-100 rounded-xl text-[10.5px] text-slate-600 flex items-center gap-1.5 shadow-2xs">
                   <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                  <span>별도 설정 없이 [설치] 터치 시 스마트폰 <b>앱서랍(앱스)</b>에 정식 등록됩니다.</span>
+                  <span>별도 설정 없이 [설치] 터치 시 안드로이드 <b>앱스 화면(앱 목록)</b>에 자동 등록됩니다.</span>
                 </div>
               </div>
             )}

@@ -85,19 +85,19 @@ export const PwaRegister: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-1">
-              <p className="text-xs font-black tracking-tight">앱서랍에 바로 등록하기</p>
-              <Sparkles className="w-3 h-3 text-amber-300" />
+              <p className="text-xs font-black tracking-tight">안드로이드 앱스 화면에 자동 등록</p>
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
             </div>
-            <p className="text-[10px] text-blue-100">터치 한 번으로 어플 설치 완료</p>
+            <p className="text-[10px] text-blue-100">터치 한 번으로 앱스(어플 목록)에 등록</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={handleInstallClick}
-            className="px-3 py-1.5 bg-white text-blue-700 font-black text-xs rounded-xl shadow-sm hover:bg-blue-50 active:scale-95 transition-all cursor-pointer"
+            className="px-3.5 py-1.5 bg-white text-blue-700 font-black text-xs rounded-xl shadow-sm hover:bg-blue-50 active:scale-95 transition-all cursor-pointer"
           >
-            설치
+            등록하기
           </button>
           <button
             type="button"

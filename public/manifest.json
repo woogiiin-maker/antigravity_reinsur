@@ -1,15 +1,14 @@
 {
-  "id": "/?source=pwa",
   "name": "건강보험 스마트 진단 & 리모델링",
   "short_name": "보험리모델링",
   "description": "연령대·가족력 기반 맞춤 건강보험 진단 및 리모델링 추천 솔루션",
-  "start_url": "/?source=pwa",
+  "id": "/",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#f8fafc",
   "theme_color": "#2563eb",
-  "categories": ["medical", "finance", "lifestyle"],
   "prefer_related_applications": false,
   "icons": [
     {
@@ -35,20 +34,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "건강보험 진단하기",
-      "short_name": "보험진단",
-      "description": "내 보장 분석 및 스마트 리모델링 시작",
-      "url": "/?source=pwa-shortcut",
-      "icons": [
-        {
-          "src": "/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
     }
   ]
 }
