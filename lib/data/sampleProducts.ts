@@ -1,6 +1,241 @@
 import { InsuranceProduct, RecommendationRule } from '@/types/insurance';
 
 export const SAMPLE_PRODUCTS: InsuranceProduct[] = [
+  // 0-1. 현대해상 - 굿앤굿어린이종합보험Q (태아/자녀 업계 1위 플랜)
+  {
+    id: '11111111-1111-1111-1111-111111110001',
+    productName: '굿앤굿어린이종합보험Q (태아·어린이 전문)',
+    insurerName: '현대해상',
+    insurerType: 'non_life',
+    targetAgeMin: -1, // -1: 태아(출산 전) 포함
+    targetAgeMax: 15,
+    targetGender: 'all',
+    category: 'fetus_child',
+    baseCoverages: {
+      cancer: 100000000,
+      similarCancer: 20000000,
+      nonReimbursedCancer: 20000000,
+      cancerLivingCare: 20000000,
+      heavyParticle: 50000000,
+      brain: 50000000,
+      heart: 50000000,
+      injuryDisability: 100000000,
+      diseaseDisability80: 50000000,
+      injurySurgery: 1000000,
+      diseaseSurgery: 500000,
+      surgery: 10000000,
+      circulatoryCare: 10000000,
+      indemnity: true,
+    },
+    monthlyPremiumEstimate: 45000, // 30세 만기 슬림형 기준 (출생 후 기준 약 3~4만원대)
+    keyFeatures: [
+      '대한민국 태아보험 부동의 점유율 1위 (산모 70% 이상 선택)',
+      '선천성이상 수술비(혀유착/이개전우공 Q코드 다빈도 포함) 보상 완비',
+      '저체중아·미숙아 출생 및 신생아 질병입원일당(인큐베이터 비용) 보장',
+      '뇌혈관·허혈성 각 5,000만원 + 소아백혈병 최대 1억원 선점',
+    ],
+    isActive: true,
+    coverageBreakdown: [
+      {
+        name: '선천성이상 수술비 (다빈도+특정선천이상)',
+        coverageAmount: 5000000,
+        monthlyPremium: 4000,
+        description: '혀유착증(설소대), 이개전우공 등 Q코드 다빈도 선천기형 및 중대 선천이상 수술 보장',
+        condition: '출생 직후 선천이상 확인 시 수술 회당 지급',
+      },
+      {
+        name: '저체중아 출생 및 신생아 질병입원일당 (인큐베이터)',
+        coverageAmount: 10000000,
+        monthlyPremium: 3500,
+        description: '2.5kg 이하 저체중아 인큐베이터 입원 시 3일 초과 1일당 5만원~10만원 지급',
+        condition: '출생 전 가입(임신 22주 이내) 특약',
+      },
+      {
+        name: '소아암 및 백혈병 다발성 고액암 진단비',
+        coverageAmount: 100000000,
+        monthlyPremium: 12000,
+        description: '소아 백혈병, 뇌종양, 골수암 등 고액 소아암 1억원 일시금',
+        condition: '면책/감액 없이 가입 즉시 100% 보장',
+      },
+      {
+        name: '뇌혈관질환 & 허혈성심장질환 진단비 (어린이 한도 최대)',
+        coverageAmount: 50000000,
+        monthlyPremium: 15000,
+        description: '성인이 되면 가입 한도가 줄어드는 2대 혈관질환 각 5,000만원 선점',
+        condition: '가입 즉시 100% 지급',
+      },
+      {
+        name: '질병후유장해 (3% 이상 포괄) & 가족일상배상책임',
+        coverageAmount: 50000000,
+        monthlyPremium: 10500,
+        description: '소아기 성장 발달 장해 및 자녀의 실수로 인한 타인 배상책임 1억원',
+        condition: '장해지급률에 따라 회당 지급',
+      },
+    ],
+    subscriptionTerms: {
+      paymentPeriod: '20년납 30세만기 (100세 계약전환형) 또는 100세만기 선택 가능',
+      renewalType: '비갱신형',
+      underwriting: '태아 전용 건강체 심사 (임신 22주 이내 태아특약 필수 가입 권장)',
+      refundType: '해약환급금 미지급형 (무해지형 가성비 우수)',
+      waitingPeriod: '선천이상/소아질환 즉시 보장 (성인 암 90일 면책 없음)',
+    },
+    expertAnalysisTips:
+      '유튜브 전문 설계 채널(보부상, 보험탈출, 시그널플래너 등) 공통 분석: "태아보험은 보상 청구 데이터가 가장 풍부한 현대해상이 압도적으로 유리합니다. 100세 만기로 무리하게 10만원 넘게 설계하기보다, 30세 만기로 3~5만원대에 선천질환·인큐베이터·뇌심장을 든든히 채운 뒤 30세 시점에 계약전환하는 것이 전문가들이 만장일치로 꼽는 최고의 가성비 전략입니다."',
+    recommendationScoreReasons: [
+      '태아/임신 중이거나 영유아 자녀에게 가장 필수적인 선천이상/인큐베이터 특약 1위 플랜',
+      '전문가들이 권장하는 30세 만기 실속형 또는 계약전환형 설계에 최적화',
+    ],
+  },
+
+  // 0-2. KB손해보험 - KB 금쪽같은 자녀보험 Plus (태아/자녀 가성비 플랜)
+  {
+    id: '11111111-1111-1111-1111-111111110002',
+    productName: 'KB 금쪽같은 자녀보험 Plus (태아/자녀 무해지)',
+    insurerName: 'KB손해보험',
+    insurerType: 'non_life',
+    targetAgeMin: -1,
+    targetAgeMax: 20,
+    targetGender: 'all',
+    category: 'fetus_child',
+    baseCoverages: {
+      cancer: 80000000,
+      similarCancer: 20000000,
+      nonReimbursedCancer: 20000000,
+      cancerLivingCare: 20000000,
+      heavyParticle: 50000000,
+      brain: 50000000,
+      heart: 50000000,
+      injuryDisability: 100000000,
+      diseaseDisability80: 50000000,
+      injurySurgery: 1000000,
+      diseaseSurgery: 500000,
+      surgery: 10000000,
+      circulatoryCare: 10000000,
+      indemnity: true,
+    },
+    monthlyPremiumEstimate: 41000,
+    keyFeatures: [
+      '오은영 박사가 추천하는 성장기 케어 및 심리상담/언어치료 지원',
+      '동일 보장 대비 업계 최저 수준 보험료 (무해지 할인 극대화)',
+      '성장기 아토피, 비염, ADHD 등 다빈도 환경성 질환 보장',
+      '암·뇌·심장 3대 질병 최대 한도 탑재',
+    ],
+    isActive: true,
+    coverageBreakdown: [
+      {
+        name: '선천성이상 수술비 및 주산기질환 보장',
+        coverageAmount: 5000000,
+        monthlyPremium: 3500,
+        description: '출생 전후 주산기 질환 및 다빈도 선천 기형 수술비 보장',
+        condition: '수술 회당',
+      },
+      {
+        name: '성장기 정신·언어 발달 및 환경성 질환 치료비',
+        coverageAmount: 10000000,
+        monthlyPremium: 4000,
+        description: '언어장애, 자폐, ADHD, 아토피피부염 등 전문 치료 지원',
+        condition: '진단/치료 시 지급',
+      },
+      {
+        name: '일반암/소아암 8천만원 + 뇌혈관·허혈성 각 5천만원',
+        coverageAmount: 80000000,
+        monthlyPremium: 22000,
+        description: '청소년기까지 3대 질병 고액 진단비 완벽 확보',
+        condition: '가입 즉시 100%',
+      },
+      {
+        name: '질병/상해 1~5종 수술비 & 골절·화상 집중 케어',
+        coverageAmount: 10000000,
+        monthlyPremium: 11500,
+        description: '활동량 많은 유아/어린이 골절(깁스치료 포함) 및 종수술비',
+        condition: '사고/수술 회당',
+      },
+    ],
+    subscriptionTerms: {
+      paymentPeriod: '20년납 100세만기 (또는 30세만기)',
+      renewalType: '비갱신형',
+      underwriting: '무사고 건강체 할인 적용 심사',
+      refundType: '해약환급금 미지급형 (표준형 대비 약 23% 저렴)',
+      waitingPeriod: '가입 즉시 100% 보장',
+    },
+    expertAnalysisTips:
+      '유튜브 전문 설계사 분석: "현대해상과 비교했을 때 보험료 가성비가 매우 뛰어나며, 성장기 언어치료나 발달장애 특약이 잘 갖춰져 있어 2순위 비교 견적으로 유튜버들이 가장 많이 추천하는 어린이/태아 플랜입니다."',
+    recommendationScoreReasons: [
+      '가성비를 중시하면서 태아~자녀 성장기 전반을 든든하게 보장받고자 하는 부모에게 최적',
+      '뇌혈관/심장 질환 가족력이 있는 경우 고액 한도 선점 가능',
+    ],
+  },
+
+  // 0-3. DB손해보험 - 프로미라이프 아이러브건강보험 (태아/자녀 계약전환형)
+  {
+    id: '11111111-1111-1111-1111-111111110003',
+    productName: '프로미라이프 아이러브건강보험 (태아/어린이)',
+    insurerName: 'DB손해보험',
+    insurerType: 'non_life',
+    targetAgeMin: -1,
+    targetAgeMax: 22,
+    targetGender: 'all',
+    category: 'fetus_child',
+    baseCoverages: {
+      cancer: 70000000,
+      similarCancer: 15000000,
+      nonReimbursedCancer: 20000000,
+      cancerLivingCare: 20000000,
+      heavyParticle: 50000000,
+      brain: 50000000,
+      heart: 50000000,
+      injuryDisability: 100000000,
+      diseaseDisability80: 30000000,
+      injurySurgery: 1000000,
+      diseaseSurgery: 500000,
+      surgery: 10000000,
+      circulatoryCare: 10000000,
+      indemnity: true,
+    },
+    monthlyPremiumEstimate: 42000,
+    keyFeatures: [
+      '30세 만기 시 무심사 100세 자동 계약전환 제도 완벽 지원',
+      '다자녀 가정 추가 보험료 할인 혜택 (둘째 이상 3~5% 할인)',
+      '질병입원의료비 및 선천이상 수술비 업계 최고 수준 보강',
+    ],
+    isActive: true,
+    coverageBreakdown: [
+      {
+        name: '태아 특약 (선천이상수술, 인큐베이터 입원일당)',
+        coverageAmount: 5000000,
+        monthlyPremium: 4000,
+        description: '출생 직후 발생하는 신생아 위험 전액 보장',
+        condition: '출생 즉시',
+      },
+      {
+        name: '일반암 7천만원 & 뇌/심장 각 5천만원',
+        coverageAmount: 70000000,
+        monthlyPremium: 23000,
+        description: '청소년기까지 3대 질병 완벽 방어선 구축',
+        condition: '가입 즉시 100%',
+      },
+      {
+        name: '종합 수술비 및 응급실내원진료비',
+        coverageAmount: 10000000,
+        monthlyPremium: 15000,
+        description: '영유아기 빈번한 고열/응급실 내원 및 수술비 지원',
+        condition: '내원 및 수술 시',
+      },
+    ],
+    subscriptionTerms: {
+      paymentPeriod: '20년납 30세만기',
+      renewalType: '비갱신형',
+      underwriting: '자녀 건강체 우대 심사',
+      refundType: '해약환급금 미지급형',
+      waitingPeriod: '즉시 100%',
+    },
+    expertAnalysisTips:
+      '유튜브 전문가 분석: "30세 만기로 저렴하게 시작했다가 자녀가 30세가 되었을 때 병력이 있어도 무심사로 100세 만기로 연장할 수 있는 제도가 가장 탄탄하여, 스마트한 부모님들에게 강력 추천되는 플랜입니다."',
+    recommendationScoreReasons: [
+      '다자녀 할인 및 30세 계약전환형의 안정성을 원하는 부모님께 최적',
+    ],
+  },
+
   // 1. 삼성화재 - 마이헬스 파트너 종합보장보험
   {
     id: '11111111-1111-1111-1111-111111112001',
@@ -65,6 +300,12 @@ export const SAMPLE_PRODUCTS: InsuranceProduct[] = [
       refundType: '해약환급금 미지급형 (표준형 대비 약 25% 저렴)',
       waitingPeriod: '일반암 90일 면책 / 뇌·심장 즉시 100% 보장',
     },
+    expertAnalysisTips:
+      '유튜브 전문가 분석: "브랜드 신뢰도와 보상 청구 안정성을 가장 중시하는 30~40대 경제활동기 가장에게 추천되는 정통 종합보험. 뇌심혈관 진단비와 종합 수술비가 균형 잡혀 있습니다."',
+    recommendationScoreReasons: [
+      '30~40대 가장 또는 경제활동 인구의 소득공백 방어에 최적',
+      '심혈관 질환 가족력이 있는 경우 안정적인 보상',
+    ],
   },
 
   // 2. 한화손해보험 - 시그니처 여성건강보험
@@ -131,6 +372,12 @@ export const SAMPLE_PRODUCTS: InsuranceProduct[] = [
       refundType: '해약환급금 미지급형',
       waitingPeriod: '일반암 90일 면책 / 부인과 수술 즉시 보장',
     },
+    expertAnalysisTips:
+      '유튜브 여성 보험 전문 채널 분석: "여성 1위 암인 유방암, 자궁암, 난소암을 일반암으로 100% 온전히 보장하며, 임신·출산기 1년 보험료 납입유예 혜택까지 있어 20~40대 여성에게 유튜브 전문가들이 1순위로 추천하는 플랜입니다."',
+    recommendationScoreReasons: [
+      '여성 피보험자에게 압도적으로 유리한 여성암/부인과 질환 특화',
+      '암 가족력 또는 부인과 질환 위험 대비에 최적',
+    ],
   },
 
   // 3. 메리츠화재 - 또받는 원더풀 암케어플랜
@@ -190,6 +437,11 @@ export const SAMPLE_PRODUCTS: InsuranceProduct[] = [
       refundType: '해약환급금 미지급형',
       waitingPeriod: '일반암 90일 면책',
     },
+    expertAnalysisTips:
+      '유튜브 암 보험 비교 분석: "가족 중 암 환자가 있는 분들에게 필수적인 원발암+전이암 계속 보장 플랜입니다. 중입자/양성자 방사선 치료비가 강력하여 암 집중 보강용으로 최적입니다."',
+    recommendationScoreReasons: [
+      '암 가족력이 선택되어 일반암 및 최신 고액 치료비 집중 보강',
+    ],
   },
 
   // 4. 현대해상 - 굿앤굿 2030스타 청년종합보험

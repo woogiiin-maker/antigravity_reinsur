@@ -215,11 +215,12 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
   // 개별 보험사 상세 펼침 상태 및 필터 상태
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
   const [showAllProducts, setShowAllProducts] = useState<boolean>(false);
-  const [insurerFilter, setInsurerFilter] = useState<'all' | 'non_life' | 'life'>('all');
+  const [insurerFilter, setInsurerFilter] = useState<'all' | 'non_life' | 'life' | 'fetus_child'>('all');
 
   const filteredProducts = (report.recommendedProducts || []).filter((p) => {
     if (insurerFilter === 'non_life') return p.insurerType === 'non_life';
     if (insurerFilter === 'life') return p.insurerType === 'life';
+    if (insurerFilter === 'fetus_child') return p.category === 'fetus_child';
     return true;
   });
 
@@ -317,18 +318,27 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
       >
         <div className="flex items-start justify-between">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${scoreTheme.badge}`}>
                 {report.scoreGrade} 등급
               </span>
+              {profile.isFetus || profile.age < 0 ? (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                  👶 태아 안심 플랜 ({profile.pregnancyWeeks || 16}주차)
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                  {profile.age <= 18 ? `만 ${profile.age}세 (어린이)` : `만 ${profile.age}세`} ({profile.gender === 'male' ? '남성' : '여성'})
+                </span>
+              )}
               {profile.familyHistory && profile.familyHistory.length > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  가족력 반영
+                  가족력 가중치 반영
                 </span>
               )}
             </div>
             <h2 className="text-xl font-extrabold text-slate-900 mt-2">
-              종합 보장 점수
+              {profile.isFetus || profile.age < 0 ? '태아 & 신생아 종합 보장 분석' : '종합 보장 점수'}
             </h2>
           </div>
 
@@ -1113,8 +1123,58 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
         transition={{ delay: 0.2 }}
         className="space-y-3"
       >
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
+        <div className="space-y-3">
+          {/* 유튜브 전문가 & 보험사 분석 생애주기 맞춤 설계 전략 배너 */}
+          {report.ageGroupStrategy && (
+            <div className="p-4 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50/70 border-2 border-blue-200 rounded-2xl space-y-2.5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">📺</span>
+                  <span className="text-xs font-extrabold text-blue-950">
+                    유튜브 전문가 &amp; 보험사 분석: [{report.ageGroupStrategy.groupLabel}] 맞춤 설계 전략
+                  </span>
+                </div>
+                <span className="text-[10px] text-blue-600 font-bold bg-white px-2 py-0.5 rounded-full border border-blue-200">
+                  공통 표준 권장선
+                </span>
+              </div>
+              <h4 className="text-sm font-bold text-slate-900">
+                {report.ageGroupStrategy.strategyTitle}
+              </h4>
+              <p className="text-xs text-slate-700 leading-relaxed bg-white/80 p-3 rounded-xl border border-blue-100">
+                {report.ageGroupStrategy.strategyDesc}
+              </p>
+              {report.ageGroupStrategy.keyPoints && report.ageGroupStrategy.keyPoints.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[11px] font-extrabold text-indigo-900 block">
+                    ★ 유튜브 전문 분석 채널 핵심 체크포인트:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-[10.5px]">
+                    {report.ageGroupStrategy.keyPoints.map((pt, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-white p-2 rounded-lg border border-indigo-100 text-slate-700 flex items-start gap-1.5 shadow-2xs"
+                      >
+                        <span className="text-blue-600 font-bold">✔</span>
+                        <span>{pt}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {report.ageGroupStrategy.fetusSpecificNote && (
+                <div className="text-[10.5px] text-amber-900 bg-amber-50 p-2 rounded-lg border border-amber-200 flex items-center gap-1.5">
+                  <span>💡</span>
+                  <span>{report.ageGroupStrategy.fetusSpecificNote}</span>
+                </div>
+              )}
+              <div className="text-[10px] text-slate-400 pt-0.5">
+                출처: {report.ageGroupStrategy.sources}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-1">
             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-blue-600" /> 맞춤 추천 상품 플랜
             </h3>
@@ -1128,7 +1188,7 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
             <span>보험사 카드를 <b>터치(클릭)</b>하면 <b>특약별 보장금액</b>과 <b>개별 월 보험료</b>를 확인할 수 있습니다.</span>
           </p>
 
-          {/* 손해보험 / 생명보험 필터 탭 */}
+          {/* 맞춤 필터 탭 (태아/어린이 포함) */}
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-600">
             <button
               type="button"
@@ -1140,6 +1200,17 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
               }`}
             >
               전체 ({report.recommendedProducts.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setInsurerFilter('fetus_child')}
+              className={`flex-1 py-1.5 rounded-lg text-center transition-all ${
+                insurerFilter === 'fetus_child'
+                  ? 'bg-white text-amber-700 shadow-xs font-bold'
+                  : 'hover:text-slate-900'
+              }`}
+            >
+              👶 태아/자녀
             </button>
             <button
               type="button"
@@ -1186,10 +1257,12 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
                 >
                   <div className="flex justify-between items-start gap-2">
                     <div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span
                           className={`text-[11px] font-bold px-2 py-0.5 rounded ${
-                            prod.insurerType === 'life'
+                            prod.category === 'fetus_child'
+                              ? 'bg-amber-50 text-amber-800 border border-amber-300'
+                              : prod.insurerType === 'life'
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               : 'bg-blue-50 text-blue-700 border border-blue-200'
                           }`}
@@ -1197,7 +1270,11 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
                           {prod.insurerName}
                         </span>
                         <span className="text-[10px] text-slate-400 font-medium">
-                          {prod.insurerType === 'life' ? '생명보험' : '손해보험'}
+                          {prod.category === 'fetus_child'
+                            ? '태아·어린이전문'
+                            : prod.insurerType === 'life'
+                            ? '생명보험'
+                            : '손해보험'}
                         </span>
                       </div>
                       <h4 className="text-sm font-bold text-slate-800 mt-1">
@@ -1212,8 +1289,30 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
                     </div>
                   </div>
 
+                  {/* 나이/성별/가족력 맞춤 매칭 이유 뱃지들 */}
+                  {prod.recommendationScoreReasons && prod.recommendationScoreReasons.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {prod.recommendationScoreReasons.map((r, rIdx) => (
+                        <span
+                          key={rIdx}
+                          className="px-2 py-0.5 text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md"
+                        >
+                          ✨ {r}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 유튜브 전문가 & 보험사 분석 팁 박스 */}
+                  {prod.expertAnalysisTips && (
+                    <div className="mt-2.5 p-2 bg-gradient-to-r from-amber-50/70 to-orange-50/50 border border-amber-200/80 rounded-xl text-[10.5px] text-amber-900 leading-relaxed flex items-start gap-1.5">
+                      <span className="font-extrabold text-amber-700 shrink-0">📺 팩트체크:</span>
+                      <span>{prod.expertAnalysisTips}</span>
+                    </div>
+                  )}
+
                   {/* 핵심 특징 리스트 */}
-                  <div className="mt-3 space-y-1 text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl">
+                  <div className="mt-2.5 space-y-1 text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl">
                     {prod.keyFeatures.map((f, idx) => (
                       <div key={idx} className="flex items-center gap-1.5">
                         <CheckCircle className="w-3.5 h-3.5 text-blue-500 shrink-0" />

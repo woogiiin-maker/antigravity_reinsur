@@ -55,6 +55,8 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
   // Step 1: 기본 정보
   const [age, setAge] = useState<number>(32);
   const [gender, setGender] = useState<Gender>('male');
+  const [isFetus, setIsFetus] = useState<boolean>(false);
+  const [pregnancyWeeks, setPregnancyWeeks] = useState<number>(16);
 
   // Step 2: 가족력
   const [familyHistory, setFamilyHistory] = useState<string[]>([]);
@@ -227,10 +229,12 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
   // 최종 제출
   const handleSubmit = () => {
     const userProfile: UserProfile = {
-      age: Number(age),
+      age: isFetus ? -1 : Number(age),
       gender,
       familyHistory: familyHistory.filter((item) => item !== 'none'),
       hasExistingPolicy: mode === 'remodel' && hasExisting && existingPolicies.length > 0,
+      isFetus,
+      pregnancyWeeks: isFetus ? pregnancyWeeks : undefined,
     };
 
     const policies: ExistingPolicy[] =
@@ -349,123 +353,236 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                       기본 정보를 알려주세요
                     </h2>
                     <p className="text-xs text-slate-500 mt-1">
-                      연령대와 성별에 맞춰 13개 보험사 중 가장 유리한 최적 신규 플랜을 설계합니다.
+                      태아부터 시니어까지 전 보험사 및 유튜브 전문가 분석 기준에 맞춰 최적 플랜을 설계합니다.
                     </p>
                   </div>
 
-                  {/* 성별 선택 */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-700">성별</label>
-                    <div className="grid grid-cols-2 gap-3">
+                  {/* 빠른 생애주기/연령대 선택 칩 (태아 포함) */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">생애주기 선택</label>
+                    <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
                       <button
                         type="button"
-                        onClick={() => setGender('male')}
-                        className={`py-3 px-4 rounded-xl border-2 text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                          gender === 'male'
-                            ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm'
-                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                        onClick={() => {
+                          setIsFetus(true);
+                          setAge(0);
+                        }}
+                        className={`py-2 px-1 text-center text-xs font-extrabold rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-0.5 ${
+                          isFetus
+                            ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-sm ring-2 ring-amber-200'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                         }`}
                       >
-                        <User className="w-4 h-4" /> 남성
+                        <span className="text-sm">👶</span>
+                        <span className="text-[11px]">태아</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setGender('female')}
-                        className={`py-3 px-4 rounded-xl border-2 text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                          gender === 'female'
-                            ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm'
-                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                        }`}
-                      >
-                        <User className="w-4 h-4" /> 여성
-                      </button>
-                    </div>
-                  </div>
 
-                  {/* 나이 입력 */}
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <label className="text-xs font-bold text-slate-700">나이</label>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setAge((prev) => Math.max(20, prev - 1))}
-                          className="w-6 h-6 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center transition-colors"
-                        >
-                          -
-                        </button>
-                        <span className="text-sm font-extrabold text-blue-600 min-w-[55px] text-center">
-                          만 {age}세
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setAge((prev) => Math.min(80, prev + 1))}
-                          className="w-6 h-6 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center transition-colors"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 슬라이더 및 정확한 눈금 매칭 */}
-                    <div className="relative pt-1 pb-5">
-                      <input
-                        type="range"
-                        min={20}
-                        max={80}
-                        step={1}
-                        value={age}
-                        onChange={(e) => setAge(Number(e.target.value))}
-                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 relative z-10"
-                      />
-                      <div className="relative w-full h-4 mt-1">
-                        {[20, 30, 40, 50, 60, 70, 80].map((mark) => {
-                          const percent = ((mark - 20) / (80 - 20)) * 100;
-                          return (
-                            <div
-                              key={mark}
-                              className="absolute -translate-x-1/2 flex flex-col items-center cursor-pointer"
-                              style={{ left: `${percent}%` }}
-                              onClick={() => setAge(mark)}
-                            >
-                              <div className={`w-0.5 h-1.5 ${age === mark ? 'bg-blue-600' : 'bg-slate-300'}`} />
-                              <span
-                                className={`text-[10px] mt-0.5 select-none transition-colors ${
-                                  age === mark ? 'text-blue-600 font-bold' : 'text-slate-400'
-                                }`}
-                              >
-                                {mark}세
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* 빠른 연령대 선택 칩 */}
-                    <div className="flex justify-between gap-1.5">
                       {[
-                        { label: '20대', val: 25 },
-                        { label: '30대', val: 35 },
-                        { label: '40대', val: 45 },
-                        { label: '50대', val: 50 },
-                        { label: '60대', val: 65 },
-                      ].map((p) => (
-                        <button
-                          key={p.label}
-                          type="button"
-                          onClick={() => setAge(p.val)}
-                          className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg border transition-all ${
-                            Math.floor(age / 10) * 10 === Math.floor(p.val / 10) * 10
-                              ? 'bg-blue-50 border-blue-500 text-blue-700'
-                              : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                          }`}
-                        >
-                          {p.label}
-                        </button>
-                      ))}
+                        { label: '0~10대', val: 7, text: '어린이' },
+                        { label: '20대', val: 25, text: '청년' },
+                        { label: '30대', val: 35, text: '가장' },
+                        { label: '40대', val: 45, text: '경제' },
+                        { label: '50대', val: 55, text: '발병집중' },
+                        { label: '60대+', val: 65, text: '시니어' },
+                      ].map((p) => {
+                        const isSelected =
+                          !isFetus &&
+                          (p.val === 7
+                            ? age <= 18
+                            : Math.floor(age / 10) * 10 === Math.floor(p.val / 10) * 10);
+                        return (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => {
+                              setIsFetus(false);
+                              setAge(p.val);
+                            }}
+                            className={`py-2 px-1 text-center rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-0.5 ${
+                              isSelected
+                                ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm ring-2 ring-blue-100 font-bold'
+                                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                            }`}
+                          >
+                            <span className="text-xs font-bold">{p.label}</span>
+                            <span className="text-[10px] text-slate-400">{p.text}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
+
+                  {/* 태아 모드 선택 시 특별 안내 및 임신 주차 설정 */}
+                  {isFetus ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-4 bg-gradient-to-br from-amber-50 to-orange-50/60 border-2 border-amber-300 rounded-2xl space-y-3 shadow-xs"
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-base shrink-0 shadow-xs">
+                          👶
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-bold text-amber-950">
+                            태아보험(출산 전) 맞춤 가입 모드
+                          </h3>
+                          <p className="text-[11px] text-amber-800/90 mt-0.5 leading-relaxed">
+                            <span className="font-extrabold text-amber-900 underline">임신 22주 이내</span> 가입 시 선천이상 수술비, 신생아/미숙아 인큐베이터 입원일당이 100% 보장됩니다.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 임신 주차 슬라이더 */}
+                      <div className="space-y-1.5 pt-1 border-t border-amber-200/70">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-amber-900">현재 임신 주수</span>
+                          <span className="font-extrabold text-amber-700 bg-white px-2 py-0.5 rounded-md border border-amber-300">
+                            {pregnancyWeeks}주차 {pregnancyWeeks <= 22 ? '⚡ 태아특약 가입가능' : '⚠️ 일반자녀보험 가입'}
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={4}
+                          max={36}
+                          step={1}
+                          value={pregnancyWeeks}
+                          onChange={(e) => setPregnancyWeeks(Number(e.target.value))}
+                          className="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-600"
+                        />
+                        <div className="flex justify-between text-[10px] text-amber-700 font-medium">
+                          <span>초기 (4주)</span>
+                          <span className="font-bold text-rose-600">★ 22주 이내 필수</span>
+                          <span>만삭 (36주)</span>
+                        </div>
+                      </div>
+
+                      {/* 성별 선택 (태아 산출 팁 제공) */}
+                      <div className="space-y-1.5 pt-1">
+                        <label className="text-xs font-bold text-amber-950">태아 성별 (출산 전 기준)</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setGender('male')}
+                            className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                              gender === 'male'
+                                ? 'border-blue-600 bg-white text-blue-700 shadow-sm ring-1 ring-blue-300'
+                                : 'border-amber-200 bg-white/70 text-slate-600 hover:bg-white'
+                            }`}
+                          >
+                            <span>👦 남아 (출산 전 표준 산출)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setGender('female')}
+                            className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                              gender === 'female'
+                                ? 'border-rose-500 bg-white text-rose-600 shadow-sm ring-1 ring-rose-300'
+                                : 'border-amber-200 bg-white/70 text-slate-600 hover:bg-white'
+                            }`}
+                          >
+                            <span>👧 여아 (출생 후 정산/환급)</span>
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-amber-800/80 leading-tight">
+                          💡 <b>전문가 팁:</b> 태아보험은 출생 전 보통 남아 기준으로 보험료가 책정되며, 출생 후 여아일 경우 차액이 환급되고 월 보험료가 자동 인하됩니다.
+                        </p>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    /* 일반 연령 및 성별 선택 */
+                    <div className="space-y-4">
+                      {/* 성별 선택 */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-700">성별</label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setGender('male')}
+                            className={`py-3 px-4 rounded-xl border-2 text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                              gender === 'male'
+                                ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm'
+                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                            }`}
+                          >
+                            <User className="w-4 h-4" /> 남성
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setGender('female')}
+                            className={`py-3 px-4 rounded-xl border-2 text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                              gender === 'female'
+                                ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm'
+                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                            }`}
+                          >
+                            <User className="w-4 h-4" /> 여성
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 나이 입력 (0세부터 80세까지 슬라이더 지원) */}
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <label className="text-xs font-bold text-slate-700">나이</label>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setAge((prev) => Math.max(0, prev - 1))}
+                              className="w-6 h-6 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center transition-colors"
+                            >
+                              -
+                            </button>
+                            <span className="text-sm font-extrabold text-blue-600 min-w-[75px] text-center">
+                              {age === 0 ? '0세 (영유아)' : age <= 18 ? `만 ${age}세 (어린이)` : `만 ${age}세`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setAge((prev) => Math.min(80, prev + 1))}
+                              className="w-6 h-6 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center transition-colors"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 슬라이더 및 정확한 눈금 매칭 (0세 ~ 80세) */}
+                        <div className="relative pt-1 pb-5">
+                          <input
+                            type="range"
+                            min={0}
+                            max={80}
+                            step={1}
+                            value={age}
+                            onChange={(e) => setAge(Number(e.target.value))}
+                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 relative z-10"
+                          />
+                          <div className="relative w-full h-4 mt-1">
+                            {[0, 10, 20, 30, 40, 50, 60, 70, 80].map((mark) => {
+                              const percent = (mark / 80) * 100;
+                              return (
+                                <div
+                                  key={mark}
+                                  className="absolute -translate-x-1/2 flex flex-col items-center cursor-pointer"
+                                  style={{ left: `${percent}%` }}
+                                  onClick={() => setAge(mark)}
+                                >
+                                  <div className={`w-0.5 h-1.5 ${age === mark ? 'bg-blue-600' : 'bg-slate-300'}`} />
+                                  <span
+                                    className={`text-[9.5px] mt-0.5 select-none transition-colors ${
+                                      age === mark ? 'text-blue-600 font-bold' : 'text-slate-400'
+                                    }`}
+                                  >
+                                    {mark === 0 ? '0세' : `${mark}세`}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 /* [기존 보험 리모델링 모드] 증권 업로드 + 나이 자동인식 + 인식 결과 수정 */
@@ -938,7 +1055,7 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
 
                           <input
                             type="range"
-                            min={20}
+                            min={0}
                             max={80}
                             step={1}
                             value={age}
@@ -948,11 +1065,13 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
 
                           <div className="flex justify-between gap-1">
                             {[
+                              { label: '0세', val: 0 },
+                              { label: '어린이', val: 7 },
                               { label: '20대', val: 25 },
                               { label: '30대', val: 35 },
                               { label: '40대', val: 45 },
                               { label: '50대', val: 50 },
-                              { label: '60대', val: 65 },
+                              { label: '60대+', val: 65 },
                             ].map((p) => (
                               <button
                                 key={p.label}
@@ -991,10 +1110,12 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
               <div>
                 <span className="text-xs font-semibold text-blue-600">Step 2</span>
                 <h2 className="text-xl font-bold text-slate-800 mt-1">
-                  가족력이 있으신가요?
+                  {isFetus ? '부모 및 가족의 주요 병력이 있으신가요?' : '가족력이 있으신가요?'}
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  직계 가족의 주요 병력을 기반으로 집중 보완 특약을 설계합니다.
+                  {isFetus
+                    ? '부모의 가족력을 기반으로 태아 및 출생 자녀의 관련 질환 보장을 집중 보강합니다.'
+                    : '직계 가족의 주요 병력을 기반으로 집중 보완 특약을 설계합니다.'}
                 </p>
               </div>
 
@@ -1028,8 +1149,8 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2">
                   <Activity className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-800 leading-relaxed">
-                    선택하신 가족력 질환에 대해 해당 진단비 권장 한도가 자동으로{' '}
-                    <span className="font-bold">최대 1.5배</span> 강화 적용됩니다.
+                    선택하신 가족력 질환에 대해 해당 진단비 및 치료비 권장 한도가 자동으로{' '}
+                    <span className="font-bold">최대 1.5배</span> 강화 적용되며, 관련 특화 상품이 1순위로 추천됩니다.
                   </p>
                 </div>
               )}

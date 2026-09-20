@@ -183,6 +183,8 @@ export interface UserProfile {
   gender: Gender;
   familyHistory: string[]; // e.g. ['cancer', 'brain', 'heart', 'hypertension', 'diabetes']
   hasExistingPolicy: boolean;
+  isFetus?: boolean; // 태아(임신 중/출산 전) 여부
+  pregnancyWeeks?: number; // 임신 주차 (선택사항, 예: 16주)
 }
 
 export interface ExcludedLimitedCoverage {
@@ -242,13 +244,15 @@ export interface InsuranceProduct {
   targetAgeMin: number;
   targetAgeMax: number;
   targetGender: TargetGender;
-  category: 'youth' | 'standard_health' | 'simplified_care' | 'cancer_focus' | 'heart_brain';
+  category: 'youth' | 'standard_health' | 'simplified_care' | 'cancer_focus' | 'heart_brain' | 'fetus_child' | 'senior_care';
   baseCoverages: CoverageDetails;
   monthlyPremiumEstimate: number;
   keyFeatures: string[];
   isActive?: boolean;
   coverageBreakdown?: CoveragePremiumItem[];
   subscriptionTerms?: SubscriptionTerms;
+  expertAnalysisTips?: string; // 유튜브 전문가 및 보험사 분석 핵심 포인트
+  recommendationScoreReasons?: string[]; // 조건별 추천 이유 (나이/성별/가족력 매칭 근거)
 }
 
 export interface RecommendationRule {
@@ -304,6 +308,8 @@ export interface AgeGroupStrategyInfo {
   strategyTitle: string;
   strategyDesc: string;
   sources: string;
+  keyPoints?: string[]; // 유튜브 전문가 핵심 체크리스트
+  fetusSpecificNote?: string; // 태아/산모 특약 특별 주의사항
 }
 
 export interface DiagnosisReport {
