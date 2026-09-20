@@ -166,13 +166,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 shadow-sm transition-all active:scale-98 cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
-                  <span>📲 앱서랍에 어플 설치하기</span>
+                  <span>📲 앱서랍(어플 목록)에 설치하기</span>
                   <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                 </button>
 
                 <div className="flex justify-between items-center px-1">
                   <span className="text-[10px] text-slate-500">
-                    전체화면 구동 • 빠른 실행 • 오프라인 캐시
+                    전체화면 구동 • 앱서랍 등록 • 오프라인 캐시
                   </span>
                   <button
                     type="button"
@@ -180,38 +180,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                     className="text-[10.5px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-0.5 underline cursor-pointer"
                   >
                     <HelpCircle className="w-3 h-3" />
-                    <span>설치 방법 안내</span>
+                    <span>앱서랍 전용 보관 팁 & 안내</span>
                   </button>
                 </div>
               </div>
             )}
 
-            {/* 브라우저별 수동 설치 안내 (iOS Safari 및 기타) */}
+            {/* 바탕화면이 아닌 [앱서랍]에만 깔끔하게 보관하는 팁 안내 상자 */}
+            <div className="p-2.5 bg-amber-50/80 border border-amber-200/80 rounded-xl text-[10.5px] text-amber-900 space-y-1">
+              <div className="font-bold flex items-center gap-1 text-amber-800">
+                <span>💡 바탕화면 없이 [앱서랍]에만 쏙 넣고 싶으실 때:</span>
+              </div>
+              <p className="text-amber-950/80 leading-relaxed pl-1">
+                • <b>갤럭시(삼성)</b>: 스마트폰 <b>설정 ➔ 홈 화면 ➔ &apos;홈 화면에 새 앱 추가&apos; OFF(끄기)</b>로 설정하시면 바탕화면에는 안 생기고 오직 <b>앱서랍</b>에만 설치됩니다.<br />
+                • <b>이미 바탕화면에 생겼다면?</b>: 바탕화면 아이콘을 꾹 눌러 <b>&apos;홈 화면에서 삭제&apos;</b>만 누르시면 어플은 삭제되지 않고 <b>앱서랍에 그대로 유지</b>됩니다!
+              </p>
+            </div>
+
+            {/* 브라우저별 상세 가이드 (접기/펼치기) */}
             {showManualGuide && !isStandalone && (
               <div className="p-3 bg-white rounded-xl border border-blue-200 text-xs space-y-2 animate-in fade-in duration-150">
                 <span className="font-bold text-blue-950 block text-[11px]">
-                  📱 기기별 앱서랍/홈화면 추가 방법:
+                  📱 기기별 설치 및 앱서랍 보관 상세 안내:
                 </span>
                 {isIos ? (
-                  <div className="space-y-1 text-[10.5px] text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                  <div className="space-y-1.5 text-[10.5px] text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
                     <p className="font-bold text-indigo-900 flex items-center gap-1">
-                      <Share2 className="w-3.5 h-3.5 text-blue-600" /> 아이폰(iOS Safari) 설치 순서:
+                      <Share2 className="w-3.5 h-3.5 text-blue-600" /> 아이폰(iOS Safari) 순서:
                     </p>
-                    <ol className="list-decimal pl-4 space-y-0.5 text-slate-600">
+                    <ol className="list-decimal pl-4 space-y-1 text-slate-600">
                       <li>사파리 하단 중앙의 <b>[공유(내보내기) 버튼 ⎋]</b> 터치</li>
-                      <li>메뉴를 아래로 스크롤하여 <b>[홈 화면에 추가 ➕]</b> 선택</li>
-                      <li>우측 상단 <b>[추가]</b>를 누르면 홈 화면과 앱 보관함에 앱 설치 완료!</li>
+                      <li><b>[홈 화면에 추가 ➕]</b> 선택 후 우측 상단 <b>[추가]</b> 터치</li>
+                      <li>💡 <b>앱 보관함(앱서랍)에만 두고 싶다면:</b> 아이폰 <b>설정 ➔ 홈 화면 ➔ &apos;앱 보관함에만&apos;</b>으로 설정해 두시면 홈 화면 없이 앱 보관함에만 깔끔하게 저장됩니다.</li>
                     </ol>
                   </div>
                 ) : (
-                  <div className="space-y-1 text-[10.5px] text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                  <div className="space-y-1.5 text-[10.5px] text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
                     <p className="font-bold text-indigo-900 flex items-center gap-1">
-                      <PlusSquare className="w-3.5 h-3.5 text-blue-600" /> 안드로이드/PC 설치 순서:
+                      <PlusSquare className="w-3.5 h-3.5 text-blue-600" /> 안드로이드 / PC 설치 순서:
                     </p>
-                    <ol className="list-decimal pl-4 space-y-0.5 text-slate-600">
-                      <li>상단의 <b>[📲 앱서랍에 어플 설치하기]</b> 버튼 터치</li>
-                      <li>시스템 팝업이 뜨지 않으면 브라우저 우측 상단 <b>[더보기 메뉴 ⋮]</b> 터치</li>
-                      <li><b>[앱 설치]</b> 또는 <b>[홈 화면에 추가]</b>를 선택하면 앱서랍에 자동 등록됩니다.</li>
+                    <ol className="list-decimal pl-4 space-y-1 text-slate-600">
+                      <li>상단의 <b>[📲 앱서랍에 설치하기]</b> 버튼 터치 (시스템 팝업 즉시 호출)</li>
+                      <li>시스템 팝업이 안 뜨면 브라우저 우측 상단 <b>[더보기 메뉴 ⋮] ➔ [앱 설치]</b> 선택</li>
+                      <li>💻 <b>PC(Chrome/Edge)</b>: 설치 팝업에서 <b>&apos;바탕화면 바로가기&apos; 체크를 해제</b>하시면 바탕화면 없이 <b>&apos;시작 메뉴(앱 목록)&apos;</b>에만 등록됩니다.</li>
                     </ol>
                   </div>
                 )}
