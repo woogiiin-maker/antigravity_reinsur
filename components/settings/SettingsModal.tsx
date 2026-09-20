@@ -31,6 +31,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const [isInstalled, setIsInstalled] = useState<boolean>(false);
   const [showManualGuide, setShowManualGuide] = useState<boolean>(false);
   const [isIos, setIsIos] = useState<boolean>(false);
+  const [isSamsung, setIsSamsung] = useState<boolean>(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -44,10 +45,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         document.referrer.includes('android-app://');
       setIsStandalone(standalone);
 
-      // iOS 여부 판별
+      // 기기 및 브라우저 여부 판별
       const userAgent = window.navigator.userAgent.toLowerCase();
       const iosDevice = /iphone|ipad|ipod/.test(userAgent);
+      const samsungDevice = /samsungbrowser/i.test(userAgent);
       setIsIos(iosDevice);
+      setIsSamsung(samsungDevice);
 
       // 전역 deferredPrompt 확인
       if ((window as any).deferredPrompt) {
@@ -201,9 +204,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             {showManualGuide && !isStandalone && (
               <div className="p-3 bg-white rounded-xl border border-blue-200 text-xs space-y-2 animate-in fade-in duration-150">
                 <span className="font-bold text-blue-950 block text-[11px]">
-                  📱 기기별 설치 및 앱서랍 보관 상세 안내:
+                  📱 브라우저별 설치 및 앱서랍 보관 방법:
                 </span>
-                {isIos ? (
+                {isSamsung ? (
+                  <div className="space-y-1.5 text-[10.5px] text-slate-700 bg-blue-50/70 p-2.5 rounded-lg border border-blue-200">
+                    <p className="font-bold text-blue-950 flex items-center gap-1">
+                      <Smartphone className="w-3.5 h-3.5 text-blue-600" /> 삼성 인터넷 브라우저 설치 순서:
+                    </p>
+                    <p className="text-[10px] text-blue-800 font-semibold">
+                      💡 삼성 인터넷은 &apos;앱 설치&apos;라는 이름 대신 <b>[현재 페이지 추가]</b> 메뉴를 사용합니다!
+                    </p>
+                    <ol className="list-decimal pl-4 space-y-1 text-slate-700">
+                      <li>
+                        <b>방법 A (주소창)</b>: 브라우저 최상단 주소창 맨 오른쪽의 <b>[↓ (다운로드 화살표)]</b> 아이콘 터치 ➔ <b>[설치]</b>
+                      </li>
+                      <li>
+                        <b>방법 B (하단 메뉴)</b>: 하단 우측 <b>[≡ (더보기 줄3개)]</b> ➔ <b>[현재 페이지 추가]</b> (또는 [페이지 추가]) 터치
+                      </li>
+                      <li>
+                        하위 메뉴에서 <b>[앱스 화면]</b>을 선택하시면 바탕화면 없이 <b>앱서랍(앱스)</b>에 정식 어플로 쏙 들어갑니다!
+                      </li>
+                    </ol>
+                  </div>
+                ) : isIos ? (
                   <div className="space-y-1.5 text-[10.5px] text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
                     <p className="font-bold text-indigo-900 flex items-center gap-1">
                       <Share2 className="w-3.5 h-3.5 text-blue-600" /> 아이폰(iOS Safari) 순서:
@@ -215,15 +238,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                     </ol>
                   </div>
                 ) : (
-                  <div className="space-y-1.5 text-[10.5px] text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                    <p className="font-bold text-indigo-900 flex items-center gap-1">
-                      <PlusSquare className="w-3.5 h-3.5 text-blue-600" /> 안드로이드 / PC 설치 순서:
-                    </p>
-                    <ol className="list-decimal pl-4 space-y-1 text-slate-600">
-                      <li>상단의 <b>[📲 앱서랍에 설치하기]</b> 버튼 터치 (시스템 팝업 즉시 호출)</li>
-                      <li>시스템 팝업이 안 뜨면 브라우저 우측 상단 <b>[더보기 메뉴 ⋮] ➔ [앱 설치]</b> 선택</li>
-                      <li>💻 <b>PC(Chrome/Edge)</b>: 설치 팝업에서 <b>&apos;바탕화면 바로가기&apos; 체크를 해제</b>하시면 바탕화면 없이 <b>&apos;시작 메뉴(앱 목록)&apos;</b>에만 등록됩니다.</li>
-                    </ol>
+                  <div className="space-y-2 text-[10.5px] text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                    <div className="space-y-1">
+                      <p className="font-bold text-blue-900 flex items-center gap-1">
+                        <Smartphone className="w-3.5 h-3.5 text-blue-600" /> 삼성 인터넷 브라우저인 경우:
+                      </p>
+                      <p className="text-slate-600 pl-4 leading-relaxed">
+                        삼성 인터넷은 &apos;앱 설치&apos; 대신 하단 우측 <b>[≡] ➔ [현재 페이지 추가] ➔ [앱스 화면]</b>을 누르시거나, 상단 주소창 우측의 <b>[↓ (다운로드 아이콘)]</b>을 누르시면 됩니다.
+                      </p>
+                    </div>
+                    <div className="space-y-1 pt-1.5 border-t border-slate-200">
+                      <p className="font-bold text-indigo-900 flex items-center gap-1">
+                        <PlusSquare className="w-3.5 h-3.5 text-blue-600" /> 크롬(Chrome) / PC 설치 순서:
+                      </p>
+                      <ol className="list-decimal pl-4 space-y-1 text-slate-600">
+                        <li>상단의 <b>[📲 앱서랍에 설치하기]</b> 버튼 터치 (시스템 팝업 즉시 호출)</li>
+                        <li>시스템 팝업이 안 뜨면 브라우저 우측 상단 <b>[더보기 메뉴 ⋮] ➔ [앱 설치]</b> 선택</li>
+                        <li>💻 <b>PC(Chrome/Edge)</b>: 설치 팝업에서 <b>&apos;바탕화면 바로가기&apos; 체크를 해제</b>하시면 바탕화면 없이 <b>&apos;시작 메뉴(앱 목록)&apos;</b>에만 등록됩니다.</li>
+                      </ol>
+                    </div>
                   </div>
                 )}
               </div>
