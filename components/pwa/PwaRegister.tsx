@@ -19,8 +19,10 @@ export const PwaRegister: React.FC = () => {
     // 2. PWA 설치 프롬프트 이벤트 감지
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
+      (window as any).deferredPrompt = e;
       setDeferredPrompt(e);
       setShowInstallBanner(true);
+      window.dispatchEvent(new CustomEvent('pwa-prompt-available', { detail: e }));
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
