@@ -293,7 +293,7 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
               onClick={onOpenGuideline}
               type="button"
               className="px-2 sm:px-2.5 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-blue-700 border border-blue-200/80 rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer flex items-center gap-1"
-              title="보험 핵심 16개 특약 권장 보장금액 요약표 보기"
+              title="보험 핵심 특약 권장 보장금액 요약표 보기"
             >
               <span>📋</span>
               <span className="text-[11px] font-extrabold">표준 가이드</span>
@@ -484,7 +484,7 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
             </span>
           </div>
 
-          {/* 연령대별(보험사 및 유튜브 전문 설계 기준) 맞춤 권장 가이드 배너 */}
+          {/* 연령대별 맞춤 권장 가이드 배너 */}
           {report.ageGroupStrategy && (
             <div className="bg-gradient-to-r from-blue-50/90 via-indigo-50/60 to-white p-3.5 rounded-2xl border border-blue-200 shadow-2xs space-y-1.5">
               <div className="flex items-center justify-between flex-wrap gap-1.5">
@@ -497,18 +497,15 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[10px] text-blue-700 font-bold bg-white px-2 py-0.5 rounded-full border border-blue-200">
-                    유튜브·보험사 전문가 기준
-                  </span>
                   {onOpenGuideline && (
                     <button
                       type="button"
                       onClick={onOpenGuideline}
-                      className="text-[10px] text-blue-700 hover:text-blue-900 font-black bg-blue-100/80 hover:bg-blue-200 px-2 py-0.5 rounded-full border border-blue-300 transition-all cursor-pointer flex items-center gap-0.5 shadow-2xs active:scale-95"
-                      title="16개 핵심 특약 권장금액 요약표 열기"
+                      className="text-[11px] text-blue-700 hover:text-blue-900 font-extrabold bg-white hover:bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 transition-all cursor-pointer flex items-center gap-1 shadow-2xs active:scale-95"
+                      title="보험 핵심 특약 권장 보장금액 요약표 보기"
                     >
                       <span>📋</span>
-                      <span>16대 특약 요약표</span>
+                      <span>표준 특약 요약표</span>
                     </button>
                   )}
                 </div>
@@ -516,9 +513,6 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
               <p className="text-[11px] text-slate-600 leading-relaxed pl-0.5">
                 {report.ageGroupStrategy.strategyDesc}
               </p>
-              <div className="text-[9.5px] text-slate-400 pl-0.5 flex items-center gap-1">
-                <span>📚 기준 출처: {report.ageGroupStrategy.sources}</span>
-              </div>
             </div>
           )}
 
@@ -1150,14 +1144,14 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
         className="space-y-3"
       >
         <div className="space-y-3">
-          {/* 유튜브 전문가 & 보험사 분석 생애주기 맞춤 설계 전략 배너 */}
+          {/* 생애주기 맞춤 표준 설계 전략 배너 */}
           {report.ageGroupStrategy && (
             <div className="p-4 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50/70 border-2 border-blue-200 rounded-2xl space-y-2.5 shadow-xs">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-base">📺</span>
+                  <span className="text-base">📋</span>
                   <span className="text-xs font-extrabold text-blue-950">
-                    유튜브 전문가 &amp; 보험사 분석: [{report.ageGroupStrategy.groupLabel}] 맞춤 설계 전략
+                    생애주기 표준 맞춤 설계 전략: [{report.ageGroupStrategy.groupLabel}]
                   </span>
                 </div>
                 <span className="text-[10px] text-blue-600 font-bold bg-white px-2 py-0.5 rounded-full border border-blue-200">
@@ -1173,7 +1167,7 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
               {report.ageGroupStrategy.keyPoints && report.ageGroupStrategy.keyPoints.length > 0 && (
                 <div className="space-y-1.5 pt-1">
                   <span className="text-[11px] font-extrabold text-indigo-900 block">
-                    ★ 유튜브 전문 분석 채널 핵심 체크포인트:
+                    ★ 핵심 맞춤 설계 체크포인트:
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-[10.5px]">
                     {report.ageGroupStrategy.keyPoints.map((pt, idx) => (
@@ -1329,10 +1323,10 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
                     </div>
                   )}
 
-                  {/* 유튜브 전문가 & 보험사 분석 팁 박스 */}
+                  {/* 전문가 분석 팁 박스 */}
                   {prod.expertAnalysisTips && (
                     <div className="mt-2.5 p-2 bg-gradient-to-r from-amber-50/70 to-orange-50/50 border border-amber-200/80 rounded-xl text-[10.5px] text-amber-900 leading-relaxed flex items-start gap-1.5">
-                      <span className="font-extrabold text-amber-700 shrink-0">📺 팩트체크:</span>
+                      <span className="font-extrabold text-amber-700 shrink-0">💡 전문가 팩트체크:</span>
                       <span>{prod.expertAnalysisTips}</span>
                     </div>
                   )}

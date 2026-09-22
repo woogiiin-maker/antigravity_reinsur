@@ -272,7 +272,7 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                 type="button"
                 onClick={onOpenGuideline}
                 className="px-2 sm:px-2.5 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-blue-700 rounded-lg text-xs font-bold border border-blue-200/80 shadow-xs flex items-center gap-1 transition-all active:scale-95 cursor-pointer"
-                title="보험 핵심 16개 특약 권장 보장금액 요약표 보기"
+                title="보험 핵심 특약 권장 보장금액 요약표 보기"
               >
                 <span>📋</span>
                 <span className="text-[11px] font-extrabold">표준 가이드</span>
@@ -366,7 +366,7 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                       기본 정보를 알려주세요
                     </h2>
                     <p className="text-xs text-slate-500 mt-1">
-                      태아부터 시니어까지 전 보험사 및 유튜브 전문가 분석 기준에 맞춰 최적 플랜을 설계합니다.
+                      태아부터 시니어까지 표준 가이드라인 분석 기준에 맞춰 최적 플랜을 설계합니다.
                     </p>
                   </div>
 
