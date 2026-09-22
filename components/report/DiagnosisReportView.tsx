@@ -55,6 +55,7 @@ interface DiagnosisReportViewProps {
   onReset: () => void;
   onOpenSettings?: () => void;
   onOpenSaved?: () => void;
+  onOpenGuideline?: () => void;
 }
 
 export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
@@ -64,6 +65,7 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
   onReset,
   onOpenSettings,
   onOpenSaved,
+  onOpenGuideline,
 }) => {
   // 개별 보장 항목 펼침 (출처 분해 및 조건부 제외 내역 아코디언)
   const [expandedGapKey, setExpandedGapKey] = useState<string | null>(null);
@@ -285,7 +287,18 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
           </div>
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {onOpenGuideline && (
+            <button
+              onClick={onOpenGuideline}
+              type="button"
+              className="px-2 sm:px-2.5 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-blue-700 border border-blue-200/80 rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer flex items-center gap-1"
+              title="보험 핵심 16개 특약 권장 보장금액 요약표 보기"
+            >
+              <span>📋</span>
+              <span className="text-[11px] font-extrabold">표준 가이드</span>
+            </button>
+          )}
           {onOpenSettings && (
             <button
               onClick={onOpenSettings}
@@ -304,7 +317,7 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
               title="보관함 저장 및 조회"
             >
               <Bookmark className="w-3.5 h-3.5 text-blue-600" />
-              <span className="text-[11px]">보관함</span>
+              <span className="text-[11px] hidden sm:inline">보관함</span>
             </button>
           )}
         </div>
@@ -483,9 +496,22 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
                     {report.ageGroupStrategy.strategyTitle}
                   </span>
                 </div>
-                <span className="text-[10px] text-blue-700 font-bold bg-white px-2 py-0.5 rounded-full border border-blue-200 shrink-0">
-                  유튜브·보험사 전문가 기준
-                </span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[10px] text-blue-700 font-bold bg-white px-2 py-0.5 rounded-full border border-blue-200">
+                    유튜브·보험사 전문가 기준
+                  </span>
+                  {onOpenGuideline && (
+                    <button
+                      type="button"
+                      onClick={onOpenGuideline}
+                      className="text-[10px] text-blue-700 hover:text-blue-900 font-black bg-blue-100/80 hover:bg-blue-200 px-2 py-0.5 rounded-full border border-blue-300 transition-all cursor-pointer flex items-center gap-0.5 shadow-2xs active:scale-95"
+                      title="16개 핵심 특약 권장금액 요약표 열기"
+                    >
+                      <span>📋</span>
+                      <span>16대 특약 요약표</span>
+                    </button>
+                  )}
+                </div>
               </div>
               <p className="text-[11px] text-slate-600 leading-relaxed pl-0.5">
                 {report.ageGroupStrategy.strategyDesc}

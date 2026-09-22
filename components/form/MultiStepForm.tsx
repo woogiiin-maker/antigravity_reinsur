@@ -31,6 +31,7 @@ interface MultiStepFormProps {
   onComplete: (profile: UserProfile, policies: ExistingPolicy[]) => void;
   onOpenSettings?: () => void;
   onOpenSaved?: () => void;
+  onOpenGuideline?: () => void;
 }
 
 
@@ -47,6 +48,7 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
   onComplete,
   onOpenSettings,
   onOpenSaved,
+  onOpenGuideline,
 }) => {
   // 모드: 'remodel' (기존 보험 리모델링) vs 'new' (신규 맞춤 가입)
   const [mode, setMode] = useState<'new' | 'remodel'>('remodel');
@@ -264,7 +266,18 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
               </h1>
             </div>
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {onOpenGuideline && (
+              <button
+                type="button"
+                onClick={onOpenGuideline}
+                className="px-2 sm:px-2.5 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-blue-700 rounded-lg text-xs font-bold border border-blue-200/80 shadow-xs flex items-center gap-1 transition-all active:scale-95 cursor-pointer"
+                title="보험 핵심 16개 특약 권장 보장금액 요약표 보기"
+              >
+                <span>📋</span>
+                <span className="text-[11px] font-extrabold">표준 가이드</span>
+              </button>
+            )}
             {onOpenSettings && (
               <button
                 type="button"
@@ -284,7 +297,7 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                 title="진단 결과 보관함"
               >
                 <Bookmark className="w-3.5 h-3.5 text-blue-600" />
-                <span className="text-[11px]">보관함</span>
+                <span className="text-[11px] hidden sm:inline">보관함</span>
               </button>
             )}
             <span className="text-xs font-semibold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">

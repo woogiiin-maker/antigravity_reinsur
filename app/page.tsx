@@ -5,6 +5,7 @@ import { MultiStepForm } from '@/components/form/MultiStepForm';
 import { DiagnosisReportView } from '@/components/report/DiagnosisReportView';
 import { SavedRecordsModal } from '@/components/storage/SavedRecordsModal';
 import { SettingsModal } from '@/components/settings/SettingsModal';
+import { StandardGuidelineModal } from '@/components/guideline/StandardGuidelineModal';
 import { diagnoseInsurance } from '@/lib/engine/diagnosis';
 import { DiagnosisReport, ExistingPolicy, UserProfile } from '@/types/insurance';
 import { createClient } from '@/lib/supabase/client';
@@ -16,11 +17,16 @@ export default function Home() {
   const [currentPolicies, setCurrentPolicies] = useState<ExistingPolicy[]>([]);
   const [isSavedModalOpen, setIsSavedModalOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isGuidelineOpen, setIsGuidelineOpen] = useState<boolean>(false);
 
   // 모바일 뒤로가기(popstate) 제어: 사이트 이탈 방지 및 UI 상태 정합성 보장
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
       const state = e.state;
+      if (isGuidelineOpen) {
+        setIsGuidelineOpen(false);
+        return;
+      }
       if (isSettingsOpen) {
         setIsSettingsOpen(false);
         return;
@@ -38,7 +44,21 @@ export default function Home() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [report, isSavedModalOpen, isSettingsOpen]);
+  }, [report, isSavedModalOpen, isSettingsOpen, isGuidelineOpen]);
+
+  const openGuideline = () => {
+    setIsGuidelineOpen(true);
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ modal: 'guideline' }, '');
+    }
+  };
+
+  const closeGuideline = () => {
+    setIsGuidelineOpen(false);
+    if (typeof window !== 'undefined' && window.history.state?.modal === 'guideline') {
+      window.history.back();
+    }
+  };
 
   const openSettings = () => {
     setIsSettingsOpen(true);
@@ -152,14 +172,22 @@ export default function Home() {
           onReset={handleReset}
           onOpenSettings={openSettings}
           onOpenSaved={openSaved}
+          onOpenGuideline={openGuideline}
         />
       ) : (
         <MultiStepForm
           onComplete={handleFormComplete}
           onOpenSettings={openSettings}
           onOpenSaved={openSaved}
+          onOpenGuideline={openGuideline}
         />
       )}
+
+      {/* 16개 특약 표준 권장 가이드라인 모달 */}
+      <StandardGuidelineModal
+        isOpen={isGuidelineOpen}
+        onClose={closeGuideline}
+      />
 
       {/* 가족별 진단 결과 보관함 모달 */}
       <SavedRecordsModal
