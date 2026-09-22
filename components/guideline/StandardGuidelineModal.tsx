@@ -326,36 +326,47 @@ export const StandardGuidelineModal: React.FC<StandardGuidelineModalProps> = ({
         @media print {
           @page {
             size: A4 portrait;
-            margin: 6mm 9mm 6mm 9mm !important;
+            margin: 5mm 8mm 5mm 8mm !important;
+          }
+
+          /* html, body 높이를 A4 1장으로 엄격 제한 및 여백/배경 리셋 */
+          html, body {
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: 297mm !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
 
           /* 화면상의 모든 배경 요소 및 모달 숨김 */
-          body * {
-            visibility: hidden !important;
-          }
-          .no-print {
+          .no-print,
+          .print\:hidden {
             display: none !important;
           }
 
           /* A4 인쇄 전용 시트만 1페이지로 완벽 렌더링 */
-          .guideline-a4-print-sheet,
-          .guideline-a4-print-sheet * {
-            visibility: visible !important;
-          }
-
           .guideline-a4-print-sheet {
             display: block !important;
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
+            position: static !important;
             width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
             background: #ffffff !important;
-            color: #111827 !important;
+            color: #0f172a !important;
             font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", sans-serif !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             page-break-after: avoid !important;
             page-break-inside: avoid !important;
+            break-after: avoid !important;
+            break-inside: avoid !important;
           }
 
           /* 인쇄 헤더 */
@@ -364,60 +375,62 @@ export const StandardGuidelineModal: React.FC<StandardGuidelineModalProps> = ({
             justify-content: space-between !important;
             align-items: flex-end !important;
             border-bottom: 2px solid #2563eb !important;
-            padding-bottom: 5px !important;
-            margin-bottom: 6px !important;
+            padding-bottom: 3px !important;
+            margin-bottom: 4px !important;
           }
           .print-badge {
             display: inline-block !important;
-            font-size: 8pt !important;
+            font-size: 7.5pt !important;
             font-weight: 800 !important;
             color: #1d4ed8 !important;
             background: #dbeafe !important;
             border: 1px solid #bfdbfe !important;
-            padding: 1px 6px !important;
-            border-radius: 4px !important;
-            margin-bottom: 2px !important;
+            padding: 1px 5px !important;
+            border-radius: 3px !important;
+            margin-bottom: 1px !important;
           }
           .print-title {
-            font-size: 14pt !important;
+            font-size: 13pt !important;
             font-weight: 900 !important;
             color: #0f172a !important;
-            margin: 2px 0 2px 0 !important;
+            margin: 1px 0 !important;
             letter-spacing: -0.5px !important;
           }
           .print-subtitle {
-            font-size: 7.8pt !important;
+            font-size: 7.2pt !important;
             color: #64748b !important;
             margin: 0 !important;
           }
           .print-header-right {
             text-align: right !important;
-            font-size: 7.5pt !important;
+            font-size: 7pt !important;
             color: #475569 !important;
             font-weight: 600 !important;
-            line-height: 1.35 !important;
+            line-height: 1.3 !important;
           }
 
-          /* 인쇄 테이블 (A4 1페이지 엄격 피팅) */
+          /* 인쇄 테이블 (A4 1페이지 엄격 피팅: 17개 특약 전 항목) */
           .print-table {
             width: 100% !important;
             border-collapse: collapse !important;
             border: 1.2px solid #94a3b8 !important;
-            font-size: 8pt !important;
-            line-height: 1.22 !important;
+            font-size: 7.6pt !important;
+            line-height: 1.18 !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
           .print-table th {
             background: #f1f5f9 !important;
             border: 1px solid #cbd5e1 !important;
-            padding: 3.5px 5px !important;
-            font-size: 8pt !important;
+            padding: 2.5px 4px !important;
+            font-size: 7.6pt !important;
             font-weight: 800 !important;
             color: #1e293b !important;
             text-align: center !important;
           }
           .print-table td {
             border: 1px solid #e2e8f0 !important;
-            padding: 3px 5px !important;
+            padding: 2px 4px !important;
             vertical-align: middle !important;
           }
 
@@ -428,7 +441,7 @@ export const StandardGuidelineModal: React.FC<StandardGuidelineModalProps> = ({
             background: #f8fafc !important;
             color: #0f172a !important;
             border-right: 1.2px solid #cbd5e1 !important;
-            font-size: 8pt !important;
+            font-size: 7.6pt !important;
           }
 
           /* 특약명 및 태그 */
@@ -438,11 +451,11 @@ export const StandardGuidelineModal: React.FC<StandardGuidelineModalProps> = ({
           }
           .print-tag {
             display: inline-block !important;
-            font-size: 6.8pt !important;
+            font-size: 6.5pt !important;
             font-weight: 800 !important;
-            margin-left: 4px !important;
-            padding: 0.5px 3.5px !important;
-            border-radius: 3px !important;
+            margin-left: 3px !important;
+            padding: 0.5px 3px !important;
+            border-radius: 2.5px !important;
             vertical-align: middle !important;
           }
           .print-tag-필수 {
@@ -482,21 +495,22 @@ export const StandardGuidelineModal: React.FC<StandardGuidelineModalProps> = ({
           /* 포인트 열 */
           .print-points {
             color: #334155 !important;
-            font-size: 7.4pt !important;
+            font-size: 7pt !important;
+            line-height: 1.15 !important;
           }
 
           /* 인쇄 푸터 */
           .print-footer {
             display: flex !important;
             justify-content: space-between !important;
-            font-size: 7pt !important;
+            font-size: 6.8pt !important;
             color: #94a3b8 !important;
-            margin-top: 4px !important;
-            padding-top: 2px !important;
+            margin-top: 3px !important;
+            padding-top: 1px !important;
             border-top: 1px solid #e2e8f0 !important;
           }
-        }
       `}</style>
     </>
   );
 };
+

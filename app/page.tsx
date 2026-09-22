@@ -162,47 +162,52 @@ export default function Home() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-slate-100/70 flex justify-center items-start py-0 sm:py-6 px-0 sm:px-4 relative">
-      {/* 진단 결과 뷰 또는 입력 폼 */}
-      {report && userProfile ? (
-        <DiagnosisReportView
-          report={report}
-          profile={userProfile}
-          existingPolicies={currentPolicies}
-          onReset={handleReset}
-          onOpenSettings={openSettings}
-          onOpenSaved={openSaved}
-          onOpenGuideline={openGuideline}
-        />
-      ) : (
-        <MultiStepForm
-          onComplete={handleFormComplete}
-          onOpenSettings={openSettings}
-          onOpenSaved={openSaved}
-          onOpenGuideline={openGuideline}
-        />
-      )}
+    <div className="w-full min-h-screen bg-slate-100/70 flex justify-center items-start py-0 sm:py-6 px-0 sm:px-4 relative print:p-0 print:m-0 print:min-h-0 print:bg-white print:block">
+      {/* 진단 결과 뷰 또는 입력 폼 (인쇄 시 완전히 레이아웃에서 제거하여 빈 페이지 유발 차단) */}
+      <div className="w-full print:hidden">
+        {report && userProfile ? (
+          <DiagnosisReportView
+            report={report}
+            profile={userProfile}
+            existingPolicies={currentPolicies}
+            onReset={handleReset}
+            onOpenSettings={openSettings}
+            onOpenSaved={openSaved}
+            onOpenGuideline={openGuideline}
+          />
+        ) : (
+          <MultiStepForm
+            onComplete={handleFormComplete}
+            onOpenSettings={openSettings}
+            onOpenSaved={openSaved}
+            onOpenGuideline={openGuideline}
+          />
+        )}
+      </div>
 
-      {/* 16개 특약 표준 권장 가이드라인 모달 */}
+      {/* 표준 권장 가이드라인 모달 (A4 1페이지 전용 인쇄 시트 탑재) */}
       <StandardGuidelineModal
         isOpen={isGuidelineOpen}
         onClose={closeGuideline}
       />
 
-      {/* 가족별 진단 결과 보관함 모달 */}
-      <SavedRecordsModal
-        isOpen={isSavedModalOpen}
-        onClose={closeSaved}
-        onLoadRecord={handleLoadRecord}
-        currentProfile={userProfile}
-        currentReport={report}
-      />
+      {/* 보조 모달들 (인쇄 시 숨김) */}
+      <div className="print:hidden">
+        {/* 가족별 진단 결과 보관함 모달 */}
+        <SavedRecordsModal
+          isOpen={isSavedModalOpen}
+          onClose={closeSaved}
+          onLoadRecord={handleLoadRecord}
+          currentProfile={userProfile}
+          currentReport={report}
+        />
 
-      {/* API 키 설정 모달 */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={closeSettings}
-      />
+        {/* API 키 설정 모달 */}
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={closeSettings}
+        />
+      </div>
     </div>
   );
 }

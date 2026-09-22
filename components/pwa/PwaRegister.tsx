@@ -77,7 +77,7 @@ export const PwaRegister: React.FC = () => {
   if (!showInstallBanner) return null;
 
   return (
-    <div className="w-full max-w-mobile mx-auto px-4 pt-2 animate-in slide-in-from-top duration-300">
+    <div className="no-print print:hidden w-full max-w-mobile mx-auto px-4 pt-2 animate-in slide-in-from-top duration-300">
       <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white px-3.5 py-2.5 rounded-2xl flex items-center justify-between shadow-lg border border-blue-400/30">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
