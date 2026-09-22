@@ -18,7 +18,14 @@ export const StandardGuidelineModal: React.FC<StandardGuidelineModalProps> = ({
 
   if (!isOpen) return null;
 
-  const categories = ['전체', '3대 진단비', '신치료비', '수술비', '장해 / 생활 / 배상'];
+  const categories = [
+    '전체',
+    '3대 진단비',
+    '암 치료비',
+    '순환기 치료비',
+    '수술비',
+    '장해 / 생활 / 배상',
+  ];
 
   const filteredItems =
     activeCategory === '전체'
@@ -54,11 +61,11 @@ export const StandardGuidelineModal: React.FC<StandardGuidelineModalProps> = ({
                     설계 표준 가이드
                   </span>
                   <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
-                    분류: 종합보험 핵심 담보 (실손의료비 연계 보완안)
+                    분류: 종합보험 필수 핵심 담보 (실손의료비 연계 표준안)
                   </span>
                 </div>
                 <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight mt-0.5">
-                  보험 핵심 16개 특약 권장 보장금액 요약표
+                  보험 핵심 특약 권장 보장금액 요약표
                 </h2>
               </div>
             </div>
@@ -87,7 +94,7 @@ export const StandardGuidelineModal: React.FC<StandardGuidelineModalProps> = ({
           {/* 서브 설명 및 카테고리 필터 탭 */}
           <div className="px-4 sm:px-6 pt-3 pb-2 bg-white border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 shrink-0">
             <p className="text-xs text-slate-500">
-              💡 업계 손해율 · 가성비 및 보장 공백 방지를 고려한 대한민국 표준 설정 가이드라인입니다.
+              💡 업계 손해율 · 가성비 및 최신 치료 환경을 반영한 최적 보장금액 가이드라인입니다.
             </p>
 
             {/* 필터 칩 */}
