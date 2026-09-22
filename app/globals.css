@@ -23,7 +23,7 @@ body {
 @media print {
   @page {
     size: A4 portrait;
-    margin: 5mm 8mm 5mm 8mm;
+    margin: 6mm 10mm 6mm 10mm;
   }
   html, body {
     min-height: 0 !important;
