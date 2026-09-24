@@ -9,13 +9,17 @@ const STRICT_OCR_PROMPT = `
 0. 월 납입 보험료 ("monthlyPremium"):
    - 가입제안서 또는 증권의 '합계보험료', '초회보험료', '1회보험료', '할인후초회보험료', '월납보험료'를 정확한 숫자(원 단위)로 추출하세요. (예: 64335, 34726)
 1. 피보험자 성명 ("insuredName"):
-   - 증권의 '피보험자', '보험대상자', '계약자' 란의 실제 성명을 정확히 추출하세요. (예: "홍길동", "이영희" 등 문서에 적힌 실제 이름. 없으면 null)
+   - [중요!] 반드시 **'피보험자' (또는 '보험대상자', '주피보험자')**의 성명을 추출하세요!
+   - '계약자'(보험료 납부자)나 '수익자'는 피보험자가 아닙니다!
+   - 계약자와 피보험자가 서로 다른 인물인 경우(예: 계약자 '고영자', 피보험자 '김태연')에는 반드시 피보험자인 **'김태연'**을 추출해야 하며, 절대 계약자를 추출해서는 안 됩니다!
+   - 문서에 마스킹된 이름(예: '김*연')만 적혀 있다면 억지로 추정하지 말고 있는 그대로 "김*연"으로 반환하세요.
 2. 피보험자 생년월일 ("birthDate") 및 만 나이 ("insuredAge"):
-   - 주민등록번호 앞 6자리(YYMMDD) 또는 생년월일(예: 1988.05.20, 1976.10.28 등):
-     * "birthDate": "YYYY-MM-DD" 형식 (예: "1988-05-20", "1976-10-28")
+   - 반드시 '피보험자'의 생년월일 또는 주민등록번호를 기준으로 계산하세요! ('계약자'의 주민등록번호를 가져오면 안 됩니다)
+   - 주민등록번호 앞 6자리(YYMMDD) 또는 생년월일(예: 790111-1****** ➔ 1979년 1월 11일생):
+     * "birthDate": "YYYY-MM-DD" 형식 (예: "1979-01-11", "1988-05-20")
      * 생년월일을 바탕으로 2026년 기준 정확한 만 나이를 계산하여 "insuredAge"에 숫자로 넣으세요.
 3. 피보험자 성별 ("insuredGender"):
-   - 주민등록번호 뒷자리 첫 번째 숫자: 1 또는 3이면 "male", 2 또는 4이면 "female"
+   - 반드시 '피보험자'의 성별 또는 주민등록번호 뒷자리 첫 번째 숫자(1 또는 3이면 "male", 2 또는 4이면 "female")로 판정하세요!
    - 성별 표기가 '남', '남성'이면 "male", '여', '여성'이면 "female"
    - 피보험자 직업이 '전업주부'이거나 여성전용 특약이 있는 경우에도 "female"로 판정하세요.
 
@@ -135,6 +139,140 @@ async function extractRawTextFromFile(file: File): Promise<string> {
 }
 
 /**
+ * 생년월일(8자리 YYYYMMDD, 6자리 YYMMDD, RRN 포맷 등) 파싱 및 만 나이/성별 계산
+ * 19790111, 790111, 790111-1..., 1979-01-11, 1979.01.11 등 모든 형태 지원
+ */
+export interface ParsedBirthDateResult {
+  birthDate?: string;
+  age?: number;
+  gender?: 'male' | 'female';
+  isValid: boolean;
+}
+
+export function parseBirthDateAndAge(rawInput: string): ParsedBirthDateResult {
+  if (!rawInput) return { isValid: false };
+  const trimmed = rawInput.trim();
+  const digits = trimmed.replace(/\D/g, '');
+
+  let birthYear: number | undefined;
+  let month: number | undefined;
+  let day: number | undefined;
+  let gender: 'male' | 'female' | undefined;
+
+  // 1) 8자리 숫자 (예: 19790111, 20150325)
+  if (digits.length === 8) {
+    const y = parseInt(digits.slice(0, 4), 10);
+    const m = parseInt(digits.slice(4, 6), 10);
+    const d = parseInt(digits.slice(6, 8), 10);
+    if (y >= 1900 && y <= 2099 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      birthYear = y;
+      month = m;
+      day = d;
+    }
+  }
+  // 2) 7자리 이상 (주민번호 앞 6자리 + 뒷자리 첫번째 성별 숫자 포함, 예: 790111-1******, 7901111)
+  else if (digits.length >= 7 && digits.length <= 13) {
+    const yy = parseInt(digits.slice(0, 2), 10);
+    const m = parseInt(digits.slice(2, 4), 10);
+    const d = parseInt(digits.slice(4, 6), 10);
+    const gDigit = parseInt(digits[6], 10);
+
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      if (gDigit === 1 || gDigit === 2 || gDigit === 5 || gDigit === 6) {
+        birthYear = 1900 + yy;
+        gender = gDigit === 1 || gDigit === 5 ? 'male' : 'female';
+      } else if (gDigit === 3 || gDigit === 4 || gDigit === 7 || gDigit === 8) {
+        birthYear = 2000 + yy;
+        gender = gDigit === 3 || gDigit === 7 ? 'male' : 'female';
+      } else if (gDigit === 9 || gDigit === 0) {
+        birthYear = 1800 + yy;
+      } else {
+        birthYear = (yy >= 30 ? 1900 : 2000) + yy;
+      }
+      month = m;
+      day = d;
+    }
+  }
+  // 3) 6자리 숫자 (예: 790111, 050325)
+  else if (digits.length === 6) {
+    const yy = parseInt(digits.slice(0, 2), 10);
+    const m = parseInt(digits.slice(2, 4), 10);
+    const d = parseInt(digits.slice(4, 6), 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      const currentYear = new Date().getFullYear();
+      const currentYY = currentYear % 100;
+      birthYear = (yy > currentYY ? 1900 : 2000) + yy;
+      month = m;
+      day = d;
+    }
+  }
+  // 4) 구분자가 포함된 텍스트 형식 (예: 1979-01-11, 1979.01.11, 1979/01/11, 1979년 1월 11일)
+  else {
+    const delimMatch = trimmed.match(
+      /(19\d{2}|20\d{2})[-/.년\s]+(0?[1-9]|1[0-2])[-/.월\s]+(0?[1-9]|[12]\d|3[01])/
+    );
+    if (delimMatch) {
+      birthYear = parseInt(delimMatch[1], 10);
+      month = parseInt(delimMatch[2], 10);
+      day = parseInt(delimMatch[3], 10);
+    }
+  }
+
+  if (!birthYear || !month || !day) {
+    return { isValid: false };
+  }
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  let age = currentYear - birthYear;
+  const currentMonthDay = (now.getMonth() + 1) * 100 + now.getDate();
+  const birthMonthDay = month * 100 + day;
+  if (currentMonthDay < birthMonthDay) {
+    age = Math.max(0, age - 1);
+  }
+
+  const formattedBirthDate = `${birthYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return {
+    birthDate: formattedBirthDate,
+    age: Math.max(0, Math.min(120, age)),
+    gender,
+    isValid: true,
+  };
+}
+
+/**
+ * 피보험자 성명 동일인 판별 (마스킹 포함)
+ * 예: '김*연' 과 '김태연' ➔ 동일인 (true)
+ * 예: '김*연' 과 '김*연' ➔ 동일인 (true)
+ * 예: '김*연' 과 '박태연' ➔ 다른 인물 (false)
+ */
+export function isSameInsuredPersonName(nameA?: string, nameB?: string): boolean {
+  if (!nameA || !nameB) return false;
+  const a = nameA.trim();
+  const b = nameB.trim();
+  if (!a || !b) return false;
+  if (a === b) return true;
+
+  if (a.length !== b.length) return false;
+
+  let matchingChars = 0;
+  for (let i = 0; i < a.length; i++) {
+    const charA = a[i];
+    const charB = b[i];
+    if (charA === '*' || charB === '*') {
+      continue;
+    }
+    if (charA === charB) {
+      matchingChars++;
+    } else {
+      return false;
+    }
+  }
+
+  return matchingChars > 0;
+}
+
+/**
  * 텍스트 또는 파일 내용으로부터 나이, 성별, 보험사, 9대 핵심 보장 정밀 추출
  */
 function parsePolicyFromTextContent(rawText: string, fileName: string): ExistingPolicy {
@@ -147,14 +285,22 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
   let isGenderUnknown = false;
   let genderInferredFrom: string | undefined = undefined;
 
+  // [핵심!] 계약자 영역과 피보험자 영역 분리
+  // 계약자(예: 계약자 고영자 530407-2...)와 피보험자(예: 피보험자 김태연 790111-1...)가 다를 때
+  // 절대 계약자 정보를 피보험자로 가져오지 않도록 피보험자 전용 블록 우선 파싱
+  const insuredSectionMatch = rawText.match(
+    /(?:피\s*보\s*험\s*자|보\s*험\s*대\s*상\s*자|주\s*피\s*보\s*험\s*자)[\s\S]{1,600}?(?=(?:보장사항|가입사항|특약사항|계약사항|보장내용|주계약|보장종목|계약자|$))/i
+  );
+  const insuredText = insuredSectionMatch ? insuredSectionMatch[0] : '';
+
   // 1-0. 피보험자 이름 정밀 추출
   let detectedName: string | undefined = undefined;
   const namePatterns = [
     /(?:피보험자|피\s*보\s*험\s*자)\s*[:：=]?\s*([가-힣*]{2,5})/i,
     /(?:보험대상자|보\s*험\s*대\s*상\s*자)\s*[:：=]?\s*([가-힣*]{2,5})/i,
+    /(?:주피보험자|종피보험자)\s*[:：=]?\s*([가-힣*]{2,5})/i,
     /(?:피보험자명|고객명|가입자명|성명|피보험자성명)\s*[:：=]?\s*([가-힣*]{2,5})/i,
     /(?:계약자\/피보험자|피보험자\/계약자)\s*[:：=]?\s*([가-힣*]{2,5})/i,
-    /(?:주피보험자|종피보험자)\s*[:：=]?\s*([가-힣*]{2,5})/i,
     /(?:이름)\s*[:：=]\s*([가-힣*]{2,5})/i,
   ];
 
@@ -165,13 +311,35 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
     '기준', '상세', '금액', '납입', '합계'
   ]);
 
-  for (const pat of namePatterns) {
-    const m = rawText.match(pat);
-    if (m && m[1]) {
-      const candidate = m[1].trim();
-      if (!stopWords.has(candidate) && candidate.length >= 2 && candidate.length <= 5) {
-        detectedName = candidate;
-        break;
+  // 우선 피보험자 블록 내부에서 성명 검색
+  if (insuredText) {
+    for (const pat of namePatterns) {
+      const m = insuredText.match(pat);
+      if (m && m[1]) {
+        const candidate = m[1].trim();
+        if (!stopWords.has(candidate) && candidate.length >= 2 && candidate.length <= 5) {
+          detectedName = candidate;
+          break;
+        }
+      }
+    }
+  }
+
+  // 피보험자 블록에서 못 찾았을 경우 전체 텍스트에서 검색하되 계약자 라인은 제외
+  if (!detectedName) {
+    const nonContractorLines = rawText
+      .split('\n')
+      .filter((line) => !line.includes('계약자') && !line.includes('납입자'))
+      .join('\n');
+
+    for (const pat of namePatterns) {
+      const m = nonContractorLines.match(pat);
+      if (m && m[1]) {
+        const candidate = m[1].trim();
+        if (!stopWords.has(candidate) && candidate.length >= 2 && candidate.length <= 5) {
+          detectedName = candidate;
+          break;
+        }
       }
     }
   }
@@ -187,55 +355,38 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
     }
   }
 
-  // 1-1. 주민등록번호 패턴 (예: 881024-1xxxxxx 또는 920512-2xxxxxx, 761028-2)
-  const rrnMatch = rawText.match(/\b(\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\s*[-–]\s*([1-4])/);
+  // 1-1. 주민등록번호 / 생년월일 패턴 (피보험자 블록 우선 탐색)
+  const targetScope = insuredText || rawText;
+
+  // 주민등록번호 패턴 (예: 790111-1xxxxxx, 881024-1, 920512-2)
+  const rrnMatch = targetScope.match(/\b(\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\s*[-–]\s*([1-4])/);
   if (rrnMatch) {
-    const yy = Number(rrnMatch[1]);
-    const mm = Number(rrnMatch[2]);
-    const dd = Number(rrnMatch[3]);
-    const genderDigit = Number(rrnMatch[4]);
-    const birthYear = (genderDigit === 1 || genderDigit === 2 ? 1900 : 2000) + yy;
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    let calcAge = currentYear - birthYear;
-    // 생일 기준 만 나이 보정
-    const currentMonthDay = (now.getMonth() + 1) * 100 + now.getDate();
-    const birthMonthDay = mm * 100 + dd;
-    if (currentMonthDay < birthMonthDay) {
-      calcAge = Math.max(0, calcAge - 1);
+    const parsed = parseBirthDateAndAge(`${rrnMatch[1]}${rrnMatch[2]}${rrnMatch[3]}-${rrnMatch[4]}`);
+    if (parsed.isValid) {
+      detectedAge = parsed.age;
+      detectedBirthDate = parsed.birthDate;
+      if (parsed.gender) {
+        detectedGender = parsed.gender;
+        isGenderUnknown = false;
+        genderInferredFrom = `피보험자 주민번호 뒷자리(${rrnMatch[4]} - ${detectedGender === 'female' ? '여성' : '남성'})`;
+      }
     }
-    detectedAge = calcAge;
-    detectedBirthDate = `${birthYear}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
-    detectedGender = genderDigit === 1 || genderDigit === 3 ? 'male' : 'female';
-    isGenderUnknown = false;
-    genderInferredFrom = `주민번호 뒷자리(${genderDigit} - ${detectedGender === 'female' ? '여성' : '남성'})`;
   }
 
-  // 1-2. 생년월일 패턴 (예: 1985년 07월 20일, 1990-05-14, 1976.10.28)
+  // 생년월일 패턴 (예: 1979-01-11, 1985년 07월 20일)
   if (!detectedAge || !detectedBirthDate) {
-    const birthMatch = rawText.match(/(19\d{2}|20\d{2})[-/.년\s]+(0?[1-9]|1[0-2])[-/.월\s]+(0?[1-9]|[12]\d|3[01])/);
+    const birthMatch = targetScope.match(/(19\d{2}|20\d{2})[-/.년\s]+(0?[1-9]|1[0-2])[-/.월\s]+(0?[1-9]|[12]\d|3[01])/);
     if (birthMatch) {
-      const birthYear = Number(birthMatch[1]);
-      const mm = Number(birthMatch[2]);
-      const dd = Number(birthMatch[3]);
-      const now = new Date();
-      let calcAge = now.getFullYear() - birthYear;
-      const currentMonthDay = (now.getMonth() + 1) * 100 + now.getDate();
-      const birthMonthDay = mm * 100 + dd;
-      if (currentMonthDay < birthMonthDay) {
-        calcAge = Math.max(0, calcAge - 1);
-      }
-      if (detectedAge === undefined) {
-        detectedAge = calcAge;
-      }
-      if (!detectedBirthDate) {
-        detectedBirthDate = `${birthYear}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+      const parsed = parseBirthDateAndAge(birthMatch[0]);
+      if (parsed.isValid) {
+        if (detectedAge === undefined) detectedAge = parsed.age;
+        if (!detectedBirthDate) detectedBirthDate = parsed.birthDate;
       }
     }
   }
 
-  // 1-3. 만 N세 패턴
-  const manAgeMatch = rawText.match(/만\s*([0-9]{1,2})\s*세/i) || fileName.match(/(\d{1,2})세/);
+  // 만 N세 패턴
+  const manAgeMatch = targetScope.match(/만\s*([0-9]{1,2})\s*세/i) || fileName.match(/(\d{1,2})세/);
   if (manAgeMatch && detectedAge === undefined) {
     detectedAge = Number(manAgeMatch[1]);
   }
@@ -262,11 +413,11 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
       detectedGender = 'male';
       isGenderUnknown = false;
       genderInferredFrom = '상품명/특약(남성 전용)';
-    } else if (text.match(/(?:피보험자|성별|관계)\s*[:：]\s*(?:여성|여)\b/)) {
+    } else if (targetScope.match(/(?:피보험자|성별|관계)\s*[:：]\s*(?:여성|여)\b/)) {
       detectedGender = 'female';
       isGenderUnknown = false;
       genderInferredFrom = '피보험자 성별 표기(여)';
-    } else if (text.match(/(?:피보험자|성별|관계)\s*[:：]\s*(?:남성|남)\b/)) {
+    } else if (targetScope.match(/(?:피보험자|성별|관계)\s*[:：]\s*(?:남성|남)\b/)) {
       detectedGender = 'male';
       isGenderUnknown = false;
       genderInferredFrom = '피보험자 성별 표기(남)';
@@ -1250,26 +1401,60 @@ export async function parseMultiplePolicyFiles(
     }
   }
 
-  // --- 피보험자 정보(나이, 성별, 이름, 생년월일) 일괄 동기화 알고리즘 ---
-  // 동시에 업로드된 증권 중 단 하나라도 생년월일/나이가 확인되면 모든 증권에 일괄 통일
-  const canonicalAge = policies.find((p) => p.insuredAge !== undefined && p.insuredAge >= 0 && p.insuredAge <= 100)?.insuredAge;
+  // --- 피보험자 이름(마스킹 해제 및 동일인 식별) 정밀 동기화 알고리즘 ---
+  // 사용자 요구사항:
+  // 1) 1건의 보험정보에서 '김*연' 같은 이름이라면 '김*연'으로 그대로 표시
+  // 2) 여러 장의 보험인 경우 '김*연'과 '김태연'은 동일인물로 분석하여 '김태연'으로 통일
 
-  // 단 하나라도 성별이 확실하게 확인된 증권 찾기
+  // 모든 증권에서 추출된 성명 수집
+  const names = policies.map((p) => p.insuredName?.trim()).filter((n): n is string => Boolean(n && n.length >= 2));
+  const unmaskedNames = names.filter((n) => !n.includes('*'));
+
+  // 각 증권별로 마스킹된 이름이 있고, 다른 증권에 마스킹되지 않은 동일인 이름이 존재하면 매칭
+  const resolvedNameMap = new Map<string, string>();
+  for (const pol of policies) {
+    if (!pol.id) {
+      pol.id = generateSecureId('policy');
+    }
+    const polId = pol.id;
+    const rawName = pol.insuredName?.trim();
+    if (!rawName) continue;
+    if (rawName.includes('*')) {
+      const match = unmaskedNames.find((un) => isSameInsuredPersonName(rawName, un));
+      if (match) {
+        resolvedNameMap.set(polId, match);
+      } else {
+        resolvedNameMap.set(polId, rawName);
+      }
+    } else {
+      resolvedNameMap.set(polId, rawName);
+    }
+  }
+
+  // 대표 인물 성명 결정 (실명 우선)
+  const canonicalUnmaskedName = unmaskedNames[0];
+  const canonicalAnyName = names[0];
+  const defaultCanonicalName = canonicalUnmaskedName || canonicalAnyName;
+
+  // 동일 인물 기준으로 나이, 생년월일, 성별 동기화
+  const canonicalAge = policies.find((p) => p.insuredAge !== undefined && p.insuredAge >= 0 && p.insuredAge <= 100)?.insuredAge;
   const confirmedGenderPolicy = policies.find((p) => p.insuredGender && p.isGenderUnknown === false);
   const canonicalGender = confirmedGenderPolicy?.insuredGender;
   const canonicalGenderInferredFrom = confirmedGenderPolicy?.genderInferredFrom || '동일 피보험자 증권 동기화';
-
-  // 단 하나라도 피보험자 이름 또는 생년월일이 감지된 경우
-  const canonicalName = policies.find((p) => p.insuredName && p.insuredName.trim().length > 1)?.insuredName;
   const canonicalBirthDate = policies.find((p) => p.birthDate && p.birthDate.trim().length >= 8)?.birthDate;
 
-  return policies.map((p) => ({
-    ...p,
-    insuredAge: p.insuredAge ?? canonicalAge,
-    insuredGender: canonicalGender ? canonicalGender : p.insuredGender,
-    isGenderUnknown: canonicalGender ? false : p.isGenderUnknown,
-    genderInferredFrom: canonicalGender ? canonicalGenderInferredFrom : p.genderInferredFrom,
-    insuredName: p.insuredName || canonicalName,
-    birthDate: p.birthDate || canonicalBirthDate,
-  }));
+  return policies.map((p) => {
+    const policyId = p.id || '';
+    const assignedName = (policyId ? resolvedNameMap.get(policyId) : undefined) || p.insuredName || defaultCanonicalName;
+    return {
+      ...p,
+      id: policyId || generateSecureId('policy'),
+      insuredAge: p.insuredAge ?? canonicalAge,
+      insuredGender: canonicalGender ? canonicalGender : p.insuredGender,
+      isGenderUnknown: canonicalGender ? false : p.isGenderUnknown,
+      genderInferredFrom: canonicalGender ? canonicalGenderInferredFrom : p.genderInferredFrom,
+      insuredName: assignedName,
+      birthDate: p.birthDate || canonicalBirthDate,
+    };
+  });
 }

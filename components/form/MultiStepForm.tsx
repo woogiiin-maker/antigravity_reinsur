@@ -25,7 +25,7 @@ import {
   Coins,
 } from 'lucide-react';
 import { CoverageDetails, ExistingPolicy, Gender, UserProfile } from '@/types/insurance';
-import { parseMultiplePolicyFiles, generateSecureId } from '@/lib/ocr/clientParser';
+import { parseMultiplePolicyFiles, generateSecureId, parseBirthDateAndAge } from '@/lib/ocr/clientParser';
 
 interface MultiStepFormProps {
   onComplete: (profile: UserProfile, policies: ExistingPolicy[]) => void;
@@ -101,6 +101,40 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
     }
   };
 
+  // 피보험자 생년월일 입력 및 만 나이/성별 자동 계산 핸들러
+  const handleUserBirthDateChange = (val: string) => {
+    setUserBirthDate(val);
+    const parsed = parseBirthDateAndAge(val);
+    if (parsed.isValid) {
+      if (parsed.age !== undefined) {
+        setAge(parsed.age);
+      }
+      if (parsed.gender) {
+        setGender(parsed.gender);
+      }
+      // 8자리 연속 숫자 입력 시(예: 19790111) 즉시 YYYY-MM-DD 포맷 변환
+      if (/^\d{8}$/.test(val.trim()) && parsed.birthDate) {
+        setUserBirthDate(parsed.birthDate);
+      }
+    }
+  };
+
+  const handleUserBirthDateBlur = () => {
+    if (!userBirthDate) return;
+    const parsed = parseBirthDateAndAge(userBirthDate);
+    if (parsed.isValid) {
+      if (parsed.birthDate) {
+        setUserBirthDate(parsed.birthDate);
+      }
+      if (parsed.age !== undefined) {
+        setAge(parsed.age);
+      }
+      if (parsed.gender) {
+        setGender(parsed.gender);
+      }
+    }
+  };
+
   // 다중 파일 초고속 병렬 처리 및 AI 파싱 함수
   const processFiles = async (fileList: FileList | File[]) => {
     const files = Array.from(fileList);
@@ -121,16 +155,24 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
         const representativeWithName = parsed.find((p) => p.insuredName && p.insuredName.trim().length > 1);
         const representativeWithBirthDate = parsed.find((p) => p.birthDate && p.birthDate.trim().length >= 8);
 
-        const detectedAge = representativeWithAge?.insuredAge ?? parsed[0]?.insuredAge ?? age;
+        let detectedAge = representativeWithAge?.insuredAge ?? parsed[0]?.insuredAge ?? age;
         const detectedGender = representativeWithGender?.insuredGender || parsed[0]?.insuredGender || gender;
         const detectedName = representativeWithName?.insuredName || parsed[0]?.insuredName;
         const detectedBirth = representativeWithBirthDate?.birthDate || parsed[0]?.birthDate;
 
+        if (detectedBirth) {
+          const parsedBirth = parseBirthDateAndAge(detectedBirth);
+          if (parsedBirth.isValid) {
+            setUserBirthDate(parsedBirth.birthDate || detectedBirth);
+            if (parsedBirth.age !== undefined) {
+              detectedAge = parsedBirth.age;
+            }
+          } else {
+            setUserBirthDate(detectedBirth);
+          }
+        }
         if (detectedName) {
           setUserName(detectedName);
-        }
-        if (detectedBirth) {
-          setUserBirthDate(detectedBirth);
         }
         if (detectedAge !== undefined) {
           setAge(detectedAge);
@@ -861,14 +903,24 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                             />
                           </div>
                           <div>
-                            <label className="text-[10.5px] font-bold text-slate-700">생년월일 (선택)</label>
+                            <label className="text-[10.5px] font-bold text-slate-700 flex items-center justify-between">
+                              <span>생년월일 (선택)</span>
+                              <span className="text-[9.5px] text-blue-600 font-normal">8자리 입력 시 나이 자동계산</span>
+                            </label>
                             <input
                               type="text"
                               value={userBirthDate}
-                              onChange={(e) => setUserBirthDate(e.target.value)}
-                              placeholder="YYYY-MM-DD"
+                              onChange={(e) => handleUserBirthDateChange(e.target.value)}
+                              onBlur={handleUserBirthDateBlur}
+                              placeholder="예: 19790111 또는 YYYY-MM-DD"
                               className="w-full mt-0.5 px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
                             />
+                            {userBirthDate && parseBirthDateAndAge(userBirthDate).isValid && (
+                              <p className="text-[10px] text-emerald-700 font-semibold mt-0.5 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                {parseBirthDateAndAge(userBirthDate).birthDate} ➔ 만 {parseBirthDateAndAge(userBirthDate).age}세 자동 반영
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center justify-between pt-0.5 text-xs">
@@ -997,10 +1049,37 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                                         type="text"
                                         value={pol.birthDate || ''}
                                         onChange={(e) => {
-                                          handleUpdatePolicy(pol.id!, { birthDate: e.target.value });
-                                          if (!userBirthDate) setUserBirthDate(e.target.value);
+                                          const val = e.target.value;
+                                          const parsed = parseBirthDateAndAge(val);
+                                          let nextBirthDate = val;
+                                          if (/^\d{8}$/.test(val.trim()) && parsed.isValid && parsed.birthDate) {
+                                            nextBirthDate = parsed.birthDate;
+                                          }
+                                          handleUpdatePolicy(pol.id!, {
+                                            birthDate: nextBirthDate,
+                                            ...(parsed.isValid && parsed.age !== undefined ? { insuredAge: parsed.age } : {}),
+                                            ...(parsed.isValid && parsed.gender ? { insuredGender: parsed.gender } : {}),
+                                          });
+                                          if (parsed.isValid) {
+                                            if (parsed.age !== undefined) setAge(parsed.age);
+                                            if (parsed.gender) setGender(parsed.gender);
+                                            setUserBirthDate(nextBirthDate);
+                                          }
                                         }}
-                                        placeholder="YYYY-MM-DD"
+                                        onBlur={() => {
+                                          if (pol.birthDate) {
+                                            const parsed = parseBirthDateAndAge(pol.birthDate);
+                                            if (parsed.isValid && parsed.birthDate) {
+                                              handleUpdatePolicy(pol.id!, {
+                                                birthDate: parsed.birthDate,
+                                                ...(parsed.age !== undefined ? { insuredAge: parsed.age } : {}),
+                                              });
+                                              if (parsed.age !== undefined) setAge(parsed.age);
+                                              setUserBirthDate(parsed.birthDate);
+                                            }
+                                          }
+                                        }}
+                                        placeholder="예: 19790111 또는 YYYY-MM-DD"
                                         className="w-full mt-0.5 p-1.5 bg-slate-50 border border-slate-200 rounded text-xs font-bold text-slate-800"
                                       />
                                     </div>
