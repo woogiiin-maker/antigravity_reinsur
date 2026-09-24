@@ -904,22 +904,33 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                           </div>
                           <div>
                             <label className="text-[10.5px] font-bold text-slate-700 flex items-center justify-between">
-                              <span>생년월일 (선택)</span>
-                              <span className="text-[9.5px] text-blue-600 font-normal">8자리 입력 시 나이 자동계산</span>
+                              <span>주민번호 / 생년월일</span>
+                              <span className="text-[9.5px] text-blue-600 font-normal">뒷자리로 성별·나이 자동분석</span>
                             </label>
                             <input
                               type="text"
                               value={userBirthDate}
                               onChange={(e) => handleUserBirthDateChange(e.target.value)}
                               onBlur={handleUserBirthDateBlur}
-                              placeholder="예: 19790111 또는 YYYY-MM-DD"
+                              placeholder="예: 790111-1****** 또는 19790111"
                               className="w-full mt-0.5 px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
                             />
                             {userBirthDate && parseBirthDateAndAge(userBirthDate).isValid && (
-                              <p className="text-[10px] text-emerald-700 font-semibold mt-0.5 flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                {parseBirthDateAndAge(userBirthDate).birthDate} ➔ 만 {parseBirthDateAndAge(userBirthDate).age}세 자동 반영
-                              </p>
+                              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  {parseBirthDateAndAge(userBirthDate).birthDate} (만 {parseBirthDateAndAge(userBirthDate).age}세)
+                                </span>
+                                {parseBirthDateAndAge(userBirthDate).gender && (
+                                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold ${
+                                    parseBirthDateAndAge(userBirthDate).gender === 'female'
+                                      ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                      : 'bg-blue-50 text-blue-700 border border-blue-200'
+                                  }`}>
+                                    {parseBirthDateAndAge(userBirthDate).gender === 'female' ? '👩 여성' : '👨 남성'} (주민번호 뒷자리 성별 확정)
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>
@@ -1044,7 +1055,7 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                                       />
                                     </div>
                                     <div>
-                                      <label className="text-[10px] text-slate-500 font-bold">생년월일 (선택)</label>
+                                      <label className="text-[10px] text-slate-500 font-bold">주민번호 / 생년월일</label>
                                       <input
                                         type="text"
                                         value={pol.birthDate || ''}
@@ -1052,8 +1063,10 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                                           const val = e.target.value;
                                           const parsed = parseBirthDateAndAge(val);
                                           let nextBirthDate = val;
-                                          if (/^\d{8}$/.test(val.trim()) && parsed.isValid && parsed.birthDate) {
-                                            nextBirthDate = parsed.birthDate;
+                                          if (parsed.isValid && parsed.birthDate) {
+                                            if (/^\d{8}$/.test(val.trim()) || val.includes('-')) {
+                                              nextBirthDate = parsed.birthDate;
+                                            }
                                           }
                                           handleUpdatePolicy(pol.id!, {
                                             birthDate: nextBirthDate,
@@ -1073,13 +1086,15 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                                               handleUpdatePolicy(pol.id!, {
                                                 birthDate: parsed.birthDate,
                                                 ...(parsed.age !== undefined ? { insuredAge: parsed.age } : {}),
+                                                ...(parsed.gender ? { insuredGender: parsed.gender } : {}),
                                               });
                                               if (parsed.age !== undefined) setAge(parsed.age);
+                                              if (parsed.gender) setGender(parsed.gender);
                                               setUserBirthDate(parsed.birthDate);
                                             }
                                           }
                                         }}
-                                        placeholder="예: 19790111 또는 YYYY-MM-DD"
+                                        placeholder="예: 790111-1****** 또는 19790111"
                                         className="w-full mt-0.5 p-1.5 bg-slate-50 border border-slate-200 rounded text-xs font-bold text-slate-800"
                                       />
                                     </div>

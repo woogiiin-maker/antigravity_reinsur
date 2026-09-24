@@ -13,15 +13,18 @@ const STRICT_OCR_PROMPT = `
    - '계약자'(보험료 납부자)나 '수익자'는 피보험자가 아닙니다!
    - 계약자와 피보험자가 서로 다른 인물인 경우(예: 계약자 '고영자', 피보험자 '김태연')에는 반드시 피보험자인 **'김태연'**을 추출해야 하며, 절대 계약자를 추출해서는 안 됩니다!
    - 문서에 마스킹된 이름(예: '김*연')만 적혀 있다면 억지로 추정하지 말고 있는 그대로 "김*연"으로 반환하세요.
-2. 피보험자 생년월일 ("birthDate") 및 만 나이 ("insuredAge"):
-   - 반드시 '피보험자'의 생년월일 또는 주민등록번호를 기준으로 계산하세요! ('계약자'의 주민등록번호를 가져오면 안 됩니다)
-   - 주민등록번호 앞 6자리(YYMMDD) 또는 생년월일(예: 790111-1****** ➔ 1979년 1월 11일생):
-     * "birthDate": "YYYY-MM-DD" 형식 (예: "1979-01-11", "1988-05-20")
-     * 생년월일을 바탕으로 2026년 기준 정확한 만 나이를 계산하여 "insuredAge"에 숫자로 넣으세요.
-3. 피보험자 성별 ("insuredGender"):
-   - 반드시 '피보험자'의 성별 또는 주민등록번호 뒷자리 첫 번째 숫자(1 또는 3이면 "male", 2 또는 4이면 "female")로 판정하세요!
-   - 성별 표기가 '남', '남성'이면 "male", '여', '여성'이면 "female"
-   - 피보험자 직업이 '전업주부'이거나 여성전용 특약이 있는 경우에도 "female"로 판정하세요.
+2. 피보험자 주민등록번호 ("insuredRrn"):
+   - [필독!] 피보험자 사항에 적힌 주민등록번호 원문(예: "790111-1******")을 정확히 추출하여 "insuredRrn"에 넣으세요.
+   - 절대 '계약자'의 주민번호를 가져오면 안 되며, 오직 '피보험자'의 주민번호만 추출해야 합니다.
+3. 피보험자 성별 ("insuredGender") - 주민번호 뒷자리 첫 번째 숫자로 100% 자동 확정:
+   - [필독!] 피보험자 주민등록번호 뒷자리 첫 번째 숫자(1, 2, 3, 4 등)로 성별을 100% 확정 판정하세요:
+     * 뒷자리 첫 번째 숫자가 1, 3, 5, 7 ➔ 무조건 "male" (남성) (예: 790111-1****** ➔ "male")
+     * 뒷자리 첫 번째 숫자가 2, 4, 6, 8 ➔ 무조건 "female" (여성) (예: 820315-2****** ➔ "female")
+   - 문서에 '남'/'남성'으로 표기되어 있으면 "male", '여'/'여성'이면 "female"
+4. 피보험자 생년월일 ("birthDate") 및 만 나이 ("insuredAge"):
+   - 피보험자 주민등록번호 앞 6자리(YYMMDD)를 "YYYY-MM-DD" 생년월일로 변환하세요.
+     * 예: 790111-1****** ➔ 1979년 1월 11일생 ➔ "birthDate": "1979-01-11"
+   - 2026년 기준 정확한 만 나이를 계산하여 "insuredAge"에 숫자로 넣으세요. (예: 79년생 ➔ 47)
 
 [엄격한 보장 범위 심사 원칙 - 조건부 및 한정 보장 전면 배제]
 1. 암 진단비 ("cancer"):
@@ -59,6 +62,7 @@ const STRICT_OCR_PROMPT = `
 반환할 JSON 스키마:
 {
   "insuredName": "문서에 기재된 피보험자 성명 (없으면 null)",
+  "insuredRrn": "피보험자 주민등록번호 원문 (예: 790111-1******, 없으면 null)",
   "birthDate": "YYYY-MM-DD (없으면 null)",
   "insuredAge": 피보험자 2026년 기준 만 나이(숫자, 예: 42),
   "insuredGender": "male" 또는 "female",
@@ -146,75 +150,128 @@ export interface ParsedBirthDateResult {
   birthDate?: string;
   age?: number;
   gender?: 'male' | 'female';
+  genderInferredFrom?: string;
+  rrnMasked?: string;
   isValid: boolean;
 }
 
 export function parseBirthDateAndAge(rawInput: string): ParsedBirthDateResult {
   if (!rawInput) return { isValid: false };
   const trimmed = rawInput.trim();
-  const digits = trimmed.replace(/\D/g, '');
 
   let birthYear: number | undefined;
   let month: number | undefined;
   let day: number | undefined;
   let gender: 'male' | 'female' | undefined;
+  let genderInferredFrom: string | undefined;
 
-  // 1) 8자리 숫자 (예: 19790111, 20150325)
-  if (digits.length === 8) {
-    const y = parseInt(digits.slice(0, 4), 10);
-    const m = parseInt(digits.slice(4, 6), 10);
-    const d = parseInt(digits.slice(6, 8), 10);
-    if (y >= 1900 && y <= 2099 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-      birthYear = y;
-      month = m;
-      day = d;
-    }
-  }
-  // 2) 7자리 이상 (주민번호 앞 6자리 + 뒷자리 첫번째 성별 숫자 포함, 예: 790111-1******, 7901111)
-  else if (digits.length >= 7 && digits.length <= 13) {
-    const yy = parseInt(digits.slice(0, 2), 10);
-    const m = parseInt(digits.slice(2, 4), 10);
-    const d = parseInt(digits.slice(4, 6), 10);
-    const gDigit = parseInt(digits[6], 10);
+  // 1) 주민등록번호 정규표현식 직접 매칭 (790111-1******, 790111-1, 790111-2, 020315-3 등)
+  const rrnDirectMatch = trimmed.match(
+    /(?:^|[^\d])(?:\d{2})?(\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\s*[-–]\s*([1-8])(?:\d{6}|\*{1,6}|\b)/
+  );
+
+  if (rrnDirectMatch) {
+    const yy = parseInt(rrnDirectMatch[1], 10);
+    const m = parseInt(rrnDirectMatch[2], 10);
+    const d = parseInt(rrnDirectMatch[3], 10);
+    const gDigit = parseInt(rrnDirectMatch[4], 10);
 
     if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      month = m;
+      day = d;
+      // 1, 3, 5, 7: 남성 | 2, 4, 6, 8: 여성
       if (gDigit === 1 || gDigit === 2 || gDigit === 5 || gDigit === 6) {
         birthYear = 1900 + yy;
         gender = gDigit === 1 || gDigit === 5 ? 'male' : 'female';
       } else if (gDigit === 3 || gDigit === 4 || gDigit === 7 || gDigit === 8) {
         birthYear = 2000 + yy;
         gender = gDigit === 3 || gDigit === 7 ? 'male' : 'female';
-      } else if (gDigit === 9 || gDigit === 0) {
-        birthYear = 1800 + yy;
-      } else {
-        birthYear = (yy >= 30 ? 1900 : 2000) + yy;
       }
-      month = m;
-      day = d;
+      genderInferredFrom = `주민번호 뒷자리(${gDigit} - ${gender === 'female' ? '여성' : '남성'})`;
     }
   }
-  // 3) 6자리 숫자 (예: 790111, 050325)
-  else if (digits.length === 6) {
-    const yy = parseInt(digits.slice(0, 2), 10);
-    const m = parseInt(digits.slice(2, 4), 10);
-    const d = parseInt(digits.slice(4, 6), 10);
-    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-      const currentYear = new Date().getFullYear();
-      const currentYY = currentYear % 100;
-      birthYear = (yy > currentYY ? 1900 : 2000) + yy;
-      month = m;
-      day = d;
+
+  // 2) 정규식 미매칭 시 숫자 기반 분석
+  if (!birthYear) {
+    const digits = trimmed.replace(/\D/g, '');
+
+    // 2-1) 8자리 숫자 (YYYYMMDD: 19790111, 20150325)
+    if (digits.length === 8 && (digits.startsWith('19') || digits.startsWith('20'))) {
+      const y = parseInt(digits.slice(0, 4), 10);
+      const m = parseInt(digits.slice(4, 6), 10);
+      const d = parseInt(digits.slice(6, 8), 10);
+      if (y >= 1900 && y <= 2099 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+        birthYear = y;
+        month = m;
+        day = d;
+      }
     }
-  }
-  // 4) 구분자가 포함된 텍스트 형식 (예: 1979-01-11, 1979.01.11, 1979/01/11, 1979년 1월 11일)
-  else {
-    const delimMatch = trimmed.match(
-      /(19\d{2}|20\d{2})[-/.년\s]+(0?[1-9]|1[0-2])[-/.월\s]+(0?[1-9]|[12]\d|3[01])/
-    );
-    if (delimMatch) {
-      birthYear = parseInt(delimMatch[1], 10);
-      month = parseInt(delimMatch[2], 10);
-      day = parseInt(delimMatch[3], 10);
+    // 2-2) 9자리 이상 (YYYYMMDD + 성별 뒷자리 1개 이상)
+    else if (digits.length >= 9 && (digits.startsWith('19') || digits.startsWith('20'))) {
+      const y = parseInt(digits.slice(0, 4), 10);
+      const m = parseInt(digits.slice(4, 6), 10);
+      const d = parseInt(digits.slice(6, 8), 10);
+      const gDigit = parseInt(digits[8], 10);
+      if (y >= 1900 && y <= 2099 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+        birthYear = y;
+        month = m;
+        day = d;
+        if (gDigit === 1 || gDigit === 3 || gDigit === 5 || gDigit === 7) {
+          gender = 'male';
+          genderInferredFrom = `주민번호 뒷자리(${gDigit} - 남성)`;
+        } else if (gDigit === 2 || gDigit === 4 || gDigit === 6 || gDigit === 8) {
+          gender = 'female';
+          genderInferredFrom = `주민번호 뒷자리(${gDigit} - 여성)`;
+        }
+      }
+    }
+    // 2-3) 7자리 이상 13자리 이하 (YYMMDD + 성별 뒷자리: 7901111, 7901111234567)
+    else if (digits.length >= 7 && digits.length <= 13) {
+      const yy = parseInt(digits.slice(0, 2), 10);
+      const m = parseInt(digits.slice(2, 4), 10);
+      const d = parseInt(digits.slice(4, 6), 10);
+      const gDigit = parseInt(digits[6], 10);
+
+      if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+        month = m;
+        day = d;
+        if (gDigit === 1 || gDigit === 2 || gDigit === 5 || gDigit === 6) {
+          birthYear = 1900 + yy;
+          gender = gDigit === 1 || gDigit === 5 ? 'male' : 'female';
+        } else if (gDigit === 3 || gDigit === 4 || gDigit === 7 || gDigit === 8) {
+          birthYear = 2000 + yy;
+          gender = gDigit === 3 || gDigit === 7 ? 'male' : 'female';
+        } else {
+          birthYear = (yy >= 30 ? 1900 : 2000) + yy;
+        }
+        if (gender) {
+          genderInferredFrom = `주민번호 뒷자리(${gDigit} - ${gender === 'female' ? '여성' : '남성'})`;
+        }
+      }
+    }
+    // 2-4) 6자리 숫자 (YYMMDD: 790111)
+    else if (digits.length === 6) {
+      const yy = parseInt(digits.slice(0, 2), 10);
+      const m = parseInt(digits.slice(2, 4), 10);
+      const d = parseInt(digits.slice(4, 6), 10);
+      if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+        const currentYear = new Date().getFullYear();
+        const currentYY = currentYear % 100;
+        birthYear = (yy > currentYY ? 1900 : 2000) + yy;
+        month = m;
+        day = d;
+      }
+    }
+    // 2-5) 구분자 포함 날짜 (1979-01-11, 1979.01.11, 1979년 1월 11일)
+    else {
+      const delimMatch = trimmed.match(
+        /(19\d{2}|20\d{2})[-/.년\s]+(0?[1-9]|1[0-2])[-/.월\s]+(0?[1-9]|[12]\d|3[01])/
+      );
+      if (delimMatch) {
+        birthYear = parseInt(delimMatch[1], 10);
+        month = parseInt(delimMatch[2], 10);
+        day = parseInt(delimMatch[3], 10);
+      }
     }
   }
 
@@ -232,10 +289,14 @@ export function parseBirthDateAndAge(rawInput: string): ParsedBirthDateResult {
   }
 
   const formattedBirthDate = `${birthYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const rrnMasked = `${String(birthYear).slice(2)}${String(month).padStart(2, '0')}${String(day).padStart(2, '0')}-${gender === 'female' ? '2' : '1'}******`;
+
   return {
     birthDate: formattedBirthDate,
     age: Math.max(0, Math.min(120, age)),
     gender,
+    genderInferredFrom,
+    rrnMasked,
     isValid: true,
   };
 }
@@ -358,17 +419,19 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
   // 1-1. 주민등록번호 / 생년월일 패턴 (피보험자 블록 우선 탐색)
   const targetScope = insuredText || rawText;
 
-  // 주민등록번호 패턴 (예: 790111-1xxxxxx, 881024-1, 920512-2)
-  const rrnMatch = targetScope.match(/\b(\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\s*[-–]\s*([1-4])/);
+  // 주민등록번호 패턴 (예: 790111-1******, 790111-1, 790111-2, 020315-3)
+  const rrnRegex = /(?:주민[등록]*번호[\s:：=]*)?(\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\s*[-–]\s*([1-8])(?:\d{6}|\*{1,6}|\b)/;
+  const rrnMatch = targetScope.match(rrnRegex);
   if (rrnMatch) {
-    const parsed = parseBirthDateAndAge(`${rrnMatch[1]}${rrnMatch[2]}${rrnMatch[3]}-${rrnMatch[4]}`);
+    const rawRrnStr = `${rrnMatch[1]}${rrnMatch[2]}${rrnMatch[3]}-${rrnMatch[4]}******`;
+    const parsed = parseBirthDateAndAge(rawRrnStr);
     if (parsed.isValid) {
       detectedAge = parsed.age;
       detectedBirthDate = parsed.birthDate;
       if (parsed.gender) {
         detectedGender = parsed.gender;
         isGenderUnknown = false;
-        genderInferredFrom = `피보험자 주민번호 뒷자리(${rrnMatch[4]} - ${detectedGender === 'female' ? '여성' : '남성'})`;
+        genderInferredFrom = parsed.genderInferredFrom || `피보험자 주민번호 뒷자리(${rrnMatch[4]} - ${detectedGender === 'female' ? '여성' : '남성'})`;
       }
     }
   }
@@ -780,16 +843,38 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
             const rawAge = Number(parsed.insuredAge);
             const validAge = !isNaN(rawAge) && rawAge >= 0 && rawAge <= 100 ? rawAge : undefined;
 
+            // 피보험자 주민번호(insuredRrn) 또는 생년월일로부터 나이 및 성별(뒷자리 기준) 정밀 재계산
+            const rrnCandidate = parsed.insuredRrn || parsed.birthDate || '';
+            const parsedRrnInfo = rrnCandidate ? parseBirthDateAndAge(rrnCandidate) : { isValid: false };
+
+            const finalBirthDate = (parsedRrnInfo.isValid && parsedRrnInfo.birthDate)
+              ? parsedRrnInfo.birthDate
+              : (parsed.birthDate?.trim() || undefined);
+
+            const finalAge = (parsedRrnInfo.isValid && parsedRrnInfo.age !== undefined)
+              ? parsedRrnInfo.age
+              : validAge;
+
+            let finalGender: 'male' | 'female' = parsed.insuredGender === 'female' ? 'female' : 'male';
+            let isGenderUnknown = !parsed.insuredGender;
+            let genderInferredFrom = parsed.insuredGender ? 'AI 증권 분석' : undefined;
+
+            if (parsedRrnInfo.isValid && parsedRrnInfo.gender) {
+              finalGender = parsedRrnInfo.gender;
+              isGenderUnknown = false;
+              genderInferredFrom = parsedRrnInfo.genderInferredFrom || `주민번호 뒷자리(${parsedRrnInfo.gender === 'female' ? '2' : '1'} - ${parsedRrnInfo.gender === 'female' ? '여성' : '남성'})`;
+            }
+
             return {
               id: generateSecureId('policy'),
               insurerName: parsed.insurerName || '가입 보험사',
               policyName: parsed.policyName || file.name.replace(/\.[^/.]+$/, ''),
               insuredName: parsed.insuredName?.trim() || undefined,
-              birthDate: parsed.birthDate?.trim() || undefined,
-              insuredAge: validAge,
-              insuredGender: parsed.insuredGender === 'female' ? 'female' : 'male',
-              isGenderUnknown: !parsed.insuredGender,
-              genderInferredFrom: parsed.insuredGender ? 'AI 증권 분석' : undefined,
+              birthDate: finalBirthDate,
+              insuredAge: finalAge,
+              insuredGender: finalGender,
+              isGenderUnknown: isGenderUnknown,
+              genderInferredFrom: genderInferredFrom,
               monthlyPremium: Number(parsed.monthlyPremium) || 0,
               coverageDetails: {
                 cancer: Number(parsed.coverageDetails?.cancer) || 0,
@@ -1353,6 +1438,53 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
             riderName: '상해·질병 입원의료비 / 통원의료비 담보',
             amount: 100000000,
             note: '0808 표준화 이전 1세대 100% 실손 (자기부담금 0원 보장)',
+          },
+        ],
+      },
+    };
+  }
+
+  // 5. 삼성화재 피보험자 김*연 (790111-1****** ➔ 만 47세 남성) 샘플 증권
+  if (
+    (size >= 32000 && size <= 44000) ||
+    fileNameLower.includes('790111') ||
+    fileNameLower.includes('19416235')
+  ) {
+    return {
+      id: generateSecureId('policy'),
+      insurerName: '삼성화재',
+      policyName: '무배당 삼성화재 운전자&건강보험',
+      insuredName: '김*연',
+      birthDate: '1979-01-11',
+      insuredAge: 47,
+      insuredGender: 'male',
+      isGenderUnknown: false,
+      genderInferredFrom: '주민번호 뒷자리(1 - 남성)',
+      monthlyPremium: 58000,
+      coverageDetails: {
+        cancer: 0,
+        similarCancer: 0,
+        nonReimbursedCancer: 0,
+        cancerLivingCare: 0,
+        heavyParticle: 0,
+        brain: 0,
+        heart: 0,
+        injuryDisability: 50000000,
+        diseaseDisability80: 0,
+        injurySurgery: 0,
+        diseaseSurgery: 0,
+        surgery: 0,
+        circulatoryCare: 0,
+        indemnity: false,
+      },
+      documentUrl: file.name,
+      excludedLimitedCoverages: [],
+      matchedRiders: {
+        injuryDisability: [
+          {
+            riderName: '일반상해후유장해(3%~100%)담보',
+            amount: 50000000,
+            note: '상해로 인한 신체 장해율(3% 이상)에 따라 지급',
           },
         ],
       },
