@@ -179,6 +179,8 @@ export interface CoverageDetails {
 
 export interface UserProfile {
   id?: string;
+  name?: string; // 피보험자 / 고객 성명 (예: '홍길동')
+  birthDate?: string; // 생년월일 (예: '1988-05-20')
   age: number;
   gender: Gender;
   familyHistory: string[]; // e.g. ['cancer', 'brain', 'heart', 'hypertension', 'diabetes']
@@ -210,6 +212,7 @@ export interface ExistingPolicy {
   maturityDate?: string;
   documentUrl?: string;
   insuredName?: string; // 피보험자 이름 (예: '김*형', '홍길동')
+  birthDate?: string; // 피보험자 생년월일 (예: '1988-05-20')
   insuredAge?: number; // 자동 추출된 피보험자 나이
   insuredGender?: Gender; // 자동 추출된 피보험자 성별
   isGenderUnknown?: boolean; // 성별 미확인 여부

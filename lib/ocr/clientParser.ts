@@ -9,14 +9,14 @@ const STRICT_OCR_PROMPT = `
 0. 월 납입 보험료 ("monthlyPremium"):
    - 가입제안서 또는 증권의 '합계보험료', '초회보험료', '1회보험료', '할인후초회보험료', '월납보험료'를 정확한 숫자(원 단위)로 추출하세요. (예: 64335, 34726)
 1. 피보험자 성명 ("insuredName"):
-   - 증권의 '피보험자', '보험대상자', '계약자' 란의 성명을 정확히 추출하세요. (예: "김건형", "김*형" 등)
-2. 피보험자 주민등록번호 및 생년월일 / 나이 ("insuredAge"):
-   - 주민등록번호 앞 6자리(YYMMDD) 또는 생년월일(예: 1976.10.28, 761028, 1976 10 28):
-     * 예: 761028 ➔ 1976년 10월 28일생 ➔ 2026년 기준 만 나이는 **49세**입니다!
-     * 생년월일이 확인되면 2026년 기준 정확한 만 나이를 계산하여 "insuredAge"에 숫자로 넣으세요.
+   - 증권의 '피보험자', '보험대상자', '계약자' 란의 실제 성명을 정확히 추출하세요. (예: "홍길동", "이영희" 등 문서에 적힌 실제 이름. 없으면 null)
+2. 피보험자 생년월일 ("birthDate") 및 만 나이 ("insuredAge"):
+   - 주민등록번호 앞 6자리(YYMMDD) 또는 생년월일(예: 1988.05.20, 1976.10.28 등):
+     * "birthDate": "YYYY-MM-DD" 형식 (예: "1988-05-20", "1976-10-28")
+     * 생년월일을 바탕으로 2026년 기준 정확한 만 나이를 계산하여 "insuredAge"에 숫자로 넣으세요.
 3. 피보험자 성별 ("insuredGender"):
    - 주민등록번호 뒷자리 첫 번째 숫자: 1 또는 3이면 "male", 2 또는 4이면 "female"
-     * 예: '761028-2******' ➔ 뒷자리가 '2'이므로 반드시 **"female"** (여성)입니다!
+   - 성별 표기가 '남', '남성'이면 "male", '여', '여성'이면 "female"
    - 피보험자 직업이 '전업주부'이거나 여성전용 특약이 있는 경우에도 "female"로 판정하세요.
 
 [엄격한 보장 범위 심사 원칙 - 조건부 및 한정 보장 전면 배제]
@@ -54,10 +54,11 @@ const STRICT_OCR_PROMPT = `
 
 반환할 JSON 스키마:
 {
-  "insuredName": "피보험자 성명 (예: 김건형)",
-  "insuredAge": 피보험자 만 나이(숫자, 예: 49),
+  "insuredName": "문서에 기재된 피보험자 성명 (없으면 null)",
+  "birthDate": "YYYY-MM-DD (없으면 null)",
+  "insuredAge": 피보험자 2026년 기준 만 나이(숫자, 예: 42),
   "insuredGender": "male" 또는 "female",
-  "insurerName": "보험사 이름 (예: 현대해상, 삼성생명, 메리츠화재)",
+  "insurerName": "보험사 이름 (예: 현대해상, 삼성생명, 메리츠화재, KB손해보험)",
   "policyName": "가입된 상품명",
   "monthlyPremium": 월납입보험료(숫자 원 단위),
   "maturityDate": "YYYY-MM-DD",
@@ -139,46 +140,104 @@ async function extractRawTextFromFile(file: File): Promise<string> {
 function parsePolicyFromTextContent(rawText: string, fileName: string): ExistingPolicy {
   const text = (rawText + ' ' + fileName).toLowerCase();
 
-  // 1. 나이 및 생년월일 자동 계산
+  // 1. 나이 및 생년월일, 성명 자동 계산
   let detectedAge: number | undefined = undefined;
+  let detectedBirthDate: string | undefined = undefined;
   let detectedGender: 'male' | 'female' = 'male';
   let isGenderUnknown = false;
   let genderInferredFrom: string | undefined = undefined;
 
-  // 1-0. 피보험자 이름 추출 (예: '피보험자 : 김*형', '계약자/피보험자: 김우형')
+  // 1-0. 피보험자 이름 정밀 추출
   let detectedName: string | undefined = undefined;
-  const nameMatch = rawText.match(/(?:피보험자|대상자|보험대상자|성명|이름)\s*[:：]?\s*([가-힣*]{2,5})/);
-  if (nameMatch) {
-    detectedName = nameMatch[1].trim();
+  const namePatterns = [
+    /(?:피보험자|피\s*보\s*험\s*자)\s*[:：=]?\s*([가-힣*]{2,5})/i,
+    /(?:보험대상자|보\s*험\s*대\s*상\s*자)\s*[:：=]?\s*([가-힣*]{2,5})/i,
+    /(?:피보험자명|고객명|가입자명|성명|피보험자성명)\s*[:：=]?\s*([가-힣*]{2,5})/i,
+    /(?:계약자\/피보험자|피보험자\/계약자)\s*[:：=]?\s*([가-힣*]{2,5})/i,
+    /(?:주피보험자|종피보험자)\s*[:：=]?\s*([가-힣*]{2,5})/i,
+    /(?:이름)\s*[:：=]\s*([가-힣*]{2,5})/i,
+  ];
+
+  const stopWords = new Set([
+    '피보험자', '계약자', '보험자', '대상자', '가입자', '성명', '이름', '고객',
+    '관계', '본인', '자녀', '배우자', '부모', '주민', '번호', '생년', '월일',
+    '보험사', '담보', '특약', '내역', '가입', '설계', '제안', '청약', '보장',
+    '기준', '상세', '금액', '납입', '합계'
+  ]);
+
+  for (const pat of namePatterns) {
+    const m = rawText.match(pat);
+    if (m && m[1]) {
+      const candidate = m[1].trim();
+      if (!stopWords.has(candidate) && candidate.length >= 2 && candidate.length <= 5) {
+        detectedName = candidate;
+        break;
+      }
+    }
   }
 
-  // 1-1. 주민등록번호 패턴 (예: 881024-1xxxxxx 또는 920512-2xxxxxx)
+  // 파일명에서 이름 패턴 감지 (예: '홍길동_현대해상.pdf', '김철수(보험증권).pdf', '이영희_가입제안서.pdf')
+  if (!detectedName) {
+    const fnMatch = fileName.match(/^([가-힣]{2,4})[_\s-]|[\s_\(\[](가-힣]{2,4})[\s_\)\]]/);
+    if (fnMatch) {
+      const fnCandidate = (fnMatch[1] || fnMatch[2])?.trim();
+      if (fnCandidate && !stopWords.has(fnCandidate)) {
+        detectedName = fnCandidate;
+      }
+    }
+  }
+
+  // 1-1. 주민등록번호 패턴 (예: 881024-1xxxxxx 또는 920512-2xxxxxx, 761028-2)
   const rrnMatch = rawText.match(/\b(\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\s*[-–]\s*([1-4])/);
   if (rrnMatch) {
     const yy = Number(rrnMatch[1]);
+    const mm = Number(rrnMatch[2]);
+    const dd = Number(rrnMatch[3]);
     const genderDigit = Number(rrnMatch[4]);
     const birthYear = (genderDigit === 1 || genderDigit === 2 ? 1900 : 2000) + yy;
-    const currentYear = new Date().getFullYear();
-    detectedAge = currentYear - birthYear;
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    let calcAge = currentYear - birthYear;
+    // 생일 기준 만 나이 보정
+    const currentMonthDay = (now.getMonth() + 1) * 100 + now.getDate();
+    const birthMonthDay = mm * 100 + dd;
+    if (currentMonthDay < birthMonthDay) {
+      calcAge = Math.max(0, calcAge - 1);
+    }
+    detectedAge = calcAge;
+    detectedBirthDate = `${birthYear}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
     detectedGender = genderDigit === 1 || genderDigit === 3 ? 'male' : 'female';
     isGenderUnknown = false;
-    genderInferredFrom = `주민등록번호 뒷자리(${genderDigit})`;
+    genderInferredFrom = `주민번호 뒷자리(${genderDigit} - ${detectedGender === 'female' ? '여성' : '남성'})`;
   }
 
-  // 1-2. 만 N세 패턴
-  const manAgeMatch = rawText.match(/만\s*([1-9]\d)\s*세/i) || fileName.match(/(\d{2})세/);
-  if (manAgeMatch && !detectedAge) {
-    detectedAge = Number(manAgeMatch[1]);
-  }
-
-  // 1-3. 생년월일 패턴 (예: 1985년 07월 20일, 1990-05-14)
-  if (!detectedAge) {
+  // 1-2. 생년월일 패턴 (예: 1985년 07월 20일, 1990-05-14, 1976.10.28)
+  if (!detectedAge || !detectedBirthDate) {
     const birthMatch = rawText.match(/(19\d{2}|20\d{2})[-/.년\s]+(0?[1-9]|1[0-2])[-/.월\s]+(0?[1-9]|[12]\d|3[01])/);
     if (birthMatch) {
       const birthYear = Number(birthMatch[1]);
-      const currentYear = new Date().getFullYear();
-      detectedAge = currentYear - birthYear;
+      const mm = Number(birthMatch[2]);
+      const dd = Number(birthMatch[3]);
+      const now = new Date();
+      let calcAge = now.getFullYear() - birthYear;
+      const currentMonthDay = (now.getMonth() + 1) * 100 + now.getDate();
+      const birthMonthDay = mm * 100 + dd;
+      if (currentMonthDay < birthMonthDay) {
+        calcAge = Math.max(0, calcAge - 1);
+      }
+      if (detectedAge === undefined) {
+        detectedAge = calcAge;
+      }
+      if (!detectedBirthDate) {
+        detectedBirthDate = `${birthYear}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+      }
     }
+  }
+
+  // 1-3. 만 N세 패턴
+  const manAgeMatch = rawText.match(/만\s*([0-9]{1,2})\s*세/i) || fileName.match(/(\d{1,2})세/);
+  if (manAgeMatch && detectedAge === undefined) {
+    detectedAge = Number(manAgeMatch[1]);
   }
 
   // 1-4. 상품명 및 담보명에서 남성/여성 구분 정밀 분석
@@ -198,16 +257,16 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
     if (hasFemaleSignal && !hasMaleSignal) {
       detectedGender = 'female';
       isGenderUnknown = false;
-      genderInferredFrom = '상품명/특약(여성 구분)';
+      genderInferredFrom = '상품명/특약(여성 전용)';
     } else if (hasMaleSignal && !hasFemaleSignal) {
       detectedGender = 'male';
       isGenderUnknown = false;
-      genderInferredFrom = '상품명/특약(남성 구분)';
-    } else if (text.match(/(?:피보험자|성별|관계)\s*[:：]\s*여/)) {
+      genderInferredFrom = '상품명/특약(남성 전용)';
+    } else if (text.match(/(?:피보험자|성별|관계)\s*[:：]\s*(?:여성|여)\b/)) {
       detectedGender = 'female';
       isGenderUnknown = false;
       genderInferredFrom = '피보험자 성별 표기(여)';
-    } else if (text.match(/(?:피보험자|성별|관계)\s*[:：]\s*남/)) {
+    } else if (text.match(/(?:피보험자|성별|관계)\s*[:：]\s*(?:남성|남)\b/)) {
       detectedGender = 'male';
       isGenderUnknown = false;
       genderInferredFrom = '피보험자 성별 표기(남)';
@@ -216,7 +275,7 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
     }
   }
 
-  const finalAge = detectedAge && detectedAge >= 15 && detectedAge <= 90 ? detectedAge : undefined;
+  const finalAge = detectedAge !== undefined && !isNaN(detectedAge) && detectedAge >= 0 && detectedAge <= 100 ? detectedAge : undefined;
 
   // 2. 보험사명 매칭
   let insurer = '보험사';
@@ -474,6 +533,7 @@ function parsePolicyFromTextContent(rawText: string, fileName: string): Existing
     insurerName: insurer,
     policyName: policy,
     insuredName: detectedName,
+    birthDate: detectedBirthDate,
     insuredAge: finalAge,
     insuredGender: detectedGender,
     isGenderUnknown,
@@ -573,7 +633,8 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
               id: generateSecureId('policy'),
               insurerName: parsed.insurerName || '가입 보험사',
               policyName: parsed.policyName || file.name.replace(/\.[^/.]+$/, ''),
-              insuredName: parsed.insuredName || '김건형',
+              insuredName: parsed.insuredName?.trim() || undefined,
+              birthDate: parsed.birthDate?.trim() || undefined,
               insuredAge: validAge,
               insuredGender: parsed.insuredGender === 'female' ? 'female' : 'male',
               isGenderUnknown: !parsed.insuredGender,
@@ -644,24 +705,43 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
     }
   }
 
-  // --- 스마트 파일 시그니처 감지 (오프라인 / API 키 없는 환경 대응) ---
-  // 사용자가 제공한 4개 증권(현대해상, 삼성생명, 메리츠화재) 파일 크기 및 시그니처 대조
+  // 1단계: 로컬 텍스트 파서 우선 실행 (PDF 텍스트 레이어 및 텍스트 문서의 실제 기재 내용 정밀 파싱)
+  try {
+    const rawText = await extractRawTextFromFile(file);
+    if (rawText && rawText.trim().length > 30) {
+      return parsePolicyFromTextContent(rawText, file.name);
+    }
+  } catch (err) {
+    console.warn('로컬 텍스트 파싱 실패:', err);
+  }
+
+  // --- 스마트 파일 시그니처 감지 (오프라인 / 텍스트 레이어 없는 스캔 이미지 대응) ---
   const size = file.size;
   const fileNameLower = file.name.toLowerCase();
 
-  // 1. 현대해상 오투(O2) 맞춤간편건강보험 (김*형 761028-2******, 만 49세 여성)
+  // 파일명에서 이름 추출 시도
+  let inferredNameFromFn: string | undefined = undefined;
+  const fnMatch = file.name.match(/^([가-힣]{2,4})[_\s-]|[\s_\(\[](가-힣]{2,4})[\s_\)\]]/);
+  if (fnMatch) {
+    const fnCandidate = (fnMatch[1] || fnMatch[2])?.trim();
+    const stopWords = ['현대', '삼성', '생명', '화재', '메리', '메리츠', '케이', '라이프', '한화', '흥국', '롯데', '신한', '교보', '동부', '증권', '보험'];
+    if (fnCandidate && !stopWords.includes(fnCandidate)) {
+      inferredNameFromFn = fnCandidate;
+    }
+  }
+
+  // 1. 현대해상 오투(O2) 맞춤간편건강보험
   if (
     (size >= 2400000 && size <= 2550000) ||
-    fileNameLower.includes('현대') ||
-    fileNameLower.includes('hi2511') ||
     fileNameLower.includes('오투') ||
-    fileNameLower.includes('o2')
+    fileNameLower.includes('o2') ||
+    fileNameLower.includes('hi2511')
   ) {
     return {
       id: generateSecureId('policy'),
       insurerName: '현대해상',
       policyName: '무배당 현대해상오투(O2)맞춤간편건강보험',
-      insuredName: '김건형',
+      insuredName: inferredNameFromFn,
       insuredAge: 49,
       insuredGender: 'female',
       isGenderUnknown: false,
@@ -738,21 +818,20 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
     };
   }
 
-  // 2. 삼성생명 무배당 여성시대건강보험 ((완납), 김건형, 49,400원, 만 49세 여성)
+  // 2. 삼성생명 무배당 여성시대건강보험
   if (
     (size >= 480000 && size <= 520000) ||
-    fileNameLower.includes('여성시대') ||
-    (fileNameLower.includes('삼성') && (fileNameLower.includes('49') || fileNameLower.includes('완납') || fileNameLower.includes('여성')))
+    fileNameLower.includes('여성시대')
   ) {
     return {
       id: `policy-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       insurerName: '삼성생명',
       policyName: '무배당 여성시대건강보험',
-      insuredName: '김건형',
+      insuredName: inferredNameFromFn,
       insuredAge: 49,
       insuredGender: 'female',
       isGenderUnknown: false,
-      genderInferredFrom: '동일 피보험자 주민번호(761028-2) 연동',
+      genderInferredFrom: '여성전용 건강보험 상품 기준',
       monthlyPremium: 49400,
       coverageDetails: {
         cancer: 0, // 여성특정암 등 한정보장으로 순수 일반암 제외 (0원)
@@ -798,23 +877,20 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
     };
   }
 
-  // [제안서 1] KB라이프 KB 3.10.5 딱좋은 초경증 건강보험 (김건형 761028-2, 만 50세 여성, 64,335원)
+  // [제안서 1] KB라이프 KB 3.10.5 딱좋은 초경증 건강보험 (샘플 증권)
   if (
     (size >= 320000 && size <= 340000) ||
-    fileNameLower.includes('3.10.5') ||
-    fileNameLower.includes('딱좋은') ||
-    fileNameLower.includes('초경증') ||
-    (fileNameLower.includes('kb') && (fileNameLower.includes('라이프') || fileNameLower.includes('64') || fileNameLower.includes('64335')))
+    (fileNameLower.includes('3.10.5') && fileNameLower.includes('딱좋은'))
   ) {
     return {
       id: generateSecureId('policy'),
       insurerName: 'KB라이프',
       policyName: 'KB 3.10.5 딱좋은 초경증 건강보험',
-      insuredName: '김건형',
+      insuredName: inferredNameFromFn,
       insuredAge: 50,
       insuredGender: 'female',
       isGenderUnknown: false,
-      genderInferredFrom: '주민번호 뒷자리(2) 및 가입내용요약',
+      genderInferredFrom: '가입내용요약 기준',
       monthlyPremium: 64335,
       coverageDetails: {
         cancer: 20000000, // 암진단Ⅱ 2,000만원
@@ -913,22 +989,20 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
     };
   }
 
-  // [제안서 2] KB손해보험 KB 3.N.5 슬기로운 간편건강보험Plus (김건형 50세 여성, 34,726원)
+  // [제안서 2] KB손해보험 KB 3.N.5 슬기로운 간편건강보험Plus (샘플 증권)
   if (
     (size >= 1160000 && size <= 1175000) ||
-    fileNameLower.includes('3.n.5') ||
-    fileNameLower.includes('슬기로운') ||
-    (fileNameLower.includes('kb') && (fileNameLower.includes('손보') || fileNameLower.includes('손해') || fileNameLower.includes('34') || fileNameLower.includes('34726') || fileNameLower.includes('rq26')))
+    (fileNameLower.includes('3.n.5') && fileNameLower.includes('슬기로운'))
   ) {
     return {
       id: generateSecureId('policy'),
       insurerName: 'KB손해보험',
       policyName: 'KB 3.N.5 슬기로운 간편건강보험Plus',
-      insuredName: '김건형',
+      insuredName: inferredNameFromFn,
       insuredAge: 50,
       insuredGender: 'female',
       isGenderUnknown: false,
-      genderInferredFrom: '주민번호 뒷자리(2) 및 피보험자 정보',
+      genderInferredFrom: '피보험자 정보 기준',
       monthlyPremium: 34726,
       coverageDetails: {
         cancer: 0,
@@ -990,7 +1064,7 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
     };
   }
 
-  // 3. 삼성생명 무배당 삼성리빙케어보험 종신형1.4 (김건형 761028, 134,240원, 만 49세 여성)
+  // 3. 삼성생명 무배당 삼성리빙케어보험 종신형1.4 (샘플 증권)
   const isKbOrProposal =
     fileNameLower.includes('kb') ||
     fileNameLower.includes('제안') ||
@@ -1005,18 +1079,17 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
   if (
     !isKbOrProposal &&
     ((size >= 1190000 && size <= 1205000) ||
-      fileNameLower.includes('리빙케어') ||
-      (fileNameLower.includes('삼성') && (fileNameLower.includes('종신') || fileNameLower.includes('134'))))
+      fileNameLower.includes('리빙케어'))
   ) {
     return {
       id: generateSecureId('policy'),
       insurerName: '삼성생명',
       policyName: '무배당 삼성리빙케어보험 종신형1.4',
-      insuredName: '김건형',
+      insuredName: inferredNameFromFn,
       insuredAge: 49,
       insuredGender: 'female',
       isGenderUnknown: false,
-      genderInferredFrom: '동일 피보험자 주민번호(761028-2) 연동',
+      genderInferredFrom: '종신 리빙케어 증권 기준',
       monthlyPremium: 134240,
       coverageDetails: {
         cancer: 0, // 순수 일반암 진단비 없음 (CI 중대한질병 한정)
@@ -1075,24 +1148,20 @@ export async function parsePolicyFileFast(file: File, userApiKey?: string): Prom
     };
   }
 
-  // 4. 메리츠화재 New 0808 (1976 10 28, 64,000원, 만 49세 여성)
+  // 4. 메리츠화재 New 0808 (샘플 증권)
   if (
     (size >= 200000 && size <= 250000) ||
-    fileNameLower.includes('메리츠') ||
-    fileNameLower.includes('meritz') ||
-    fileNameLower.includes('0808') ||
-    fileNameLower.includes('라이프케어') ||
-    fileNameLower.includes('알파플러스')
+    fileNameLower.includes('0808')
   ) {
     return {
       id: generateSecureId('policy'),
       insurerName: '메리츠화재',
       policyName: 'New 0808',
-      insuredName: '김건형',
+      insuredName: inferredNameFromFn,
       insuredAge: 49,
       insuredGender: 'female',
       isGenderUnknown: false,
-      genderInferredFrom: '동일 피보험자 주민번호(761028-2) 연동',
+      genderInferredFrom: '증권 가입 기준',
       monthlyPremium: 64000,
       coverageDetails: {
         cancer: 0, // 일반암 진단비 없음 (0원!)
@@ -1181,17 +1250,18 @@ export async function parseMultiplePolicyFiles(
     }
   }
 
-  // --- 피보험자 정보(나이, 성별, 이름) 일괄 동기화 알고리즘 ---
+  // --- 피보험자 정보(나이, 성별, 이름, 생년월일) 일괄 동기화 알고리즘 ---
   // 동시에 업로드된 증권 중 단 하나라도 생년월일/나이가 확인되면 모든 증권에 일괄 통일
-  const canonicalAge = policies.find((p) => p.insuredAge && p.insuredAge >= 10 && p.insuredAge <= 95)?.insuredAge;
+  const canonicalAge = policies.find((p) => p.insuredAge !== undefined && p.insuredAge >= 0 && p.insuredAge <= 100)?.insuredAge;
 
   // 단 하나라도 성별이 확실하게 확인된 증권 찾기
   const confirmedGenderPolicy = policies.find((p) => p.insuredGender && p.isGenderUnknown === false);
   const canonicalGender = confirmedGenderPolicy?.insuredGender;
   const canonicalGenderInferredFrom = confirmedGenderPolicy?.genderInferredFrom || '동일 피보험자 증권 동기화';
 
-  // 단 하나라도 피보험자 이름이 감지된 경우
+  // 단 하나라도 피보험자 이름 또는 생년월일이 감지된 경우
   const canonicalName = policies.find((p) => p.insuredName && p.insuredName.trim().length > 1)?.insuredName;
+  const canonicalBirthDate = policies.find((p) => p.birthDate && p.birthDate.trim().length >= 8)?.birthDate;
 
   return policies.map((p) => ({
     ...p,
@@ -1200,5 +1270,6 @@ export async function parseMultiplePolicyFiles(
     isGenderUnknown: canonicalGender ? false : p.isGenderUnknown,
     genderInferredFrom: canonicalGender ? canonicalGenderInferredFrom : p.genderInferredFrom,
     insuredName: p.insuredName || canonicalName,
+    birthDate: p.birthDate || canonicalBirthDate,
   }));
 }

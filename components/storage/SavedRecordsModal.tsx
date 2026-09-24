@@ -57,7 +57,11 @@ export const SavedRecordsModal: React.FC<SavedRecordsModalProps> = ({
   // 현재 진단 결과 저장
   const handleSaveCurrent = () => {
     if (!currentProfile || !currentReport) return;
-    const nameToSave = saveName.trim() || `진단 기록 (${new Date().toLocaleDateString('ko-KR')})`;
+    const nameToSave =
+      saveName.trim() ||
+      (currentProfile.name
+        ? `${currentProfile.name} 님의 진단 결과`
+        : `진단 기록 (${new Date().toLocaleDateString('ko-KR')})`);
 
     const newRecord: SavedRecord = {
       id: Date.now().toString(),

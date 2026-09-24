@@ -53,6 +53,10 @@ export async function POST(req: NextRequest) {
 
 반환할 JSON 스키마:
 {
+  "insuredName": "문서에 기재된 피보험자 성명 (알 수 없으면 null)",
+  "birthDate": "YYYY-MM-DD (알 수 없으면 null)",
+  "insuredAge": 2026년 기준 만 나이(숫자, 알 수 없으면 null),
+  "insuredGender": "male 또는 female (알 수 없으면 null)",
   "insurerName": "보험사 이름 (알 수 없으면 빈 문자열)",
   "policyName": "가입된 상품명 (알 수 없으면 빈 문자열)",
   "monthlyPremium": 월납입보험료(숫자 원 단위, 없으면 0),

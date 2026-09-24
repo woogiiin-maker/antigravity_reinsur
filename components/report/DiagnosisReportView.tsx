@@ -279,10 +279,12 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
           </div>
           <div>
             <h1 className="text-base sm:text-lg font-black text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">
-              건강보험 진단
+              {profile.name ? `${profile.name} 님의 건강보험 진단` : '건강보험 진단'}
             </h1>
             <p className="text-[11px] text-slate-500">
-              만 {profile.age}세 {profile.gender === 'male' ? '남성' : '여성'} 맞춤 리포트
+              {profile.name && <span className="font-bold text-indigo-700 mr-1">👤 {profile.name} 님 ·</span>}
+              만 {profile.age}세 {profile.gender === 'male' ? '남성' : '여성'}
+              {profile.birthDate ? ` (${profile.birthDate}생)` : ''} 맞춤 리포트
             </p>
           </div>
         </button>
@@ -335,6 +337,11 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${scoreTheme.badge}`}>
                 {report.scoreGrade} 등급
               </span>
+              {profile.name && (
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-indigo-100 text-indigo-800 border border-indigo-200 flex items-center gap-1 shadow-2xs">
+                  👤 {profile.name} 님
+                </span>
+              )}
               {profile.isFetus || profile.age < 0 ? (
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
                   👶 태아 안심 플랜 ({profile.pregnancyWeeks || 16}주차)
@@ -342,6 +349,7 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
               ) : (
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
                   {profile.age <= 18 ? `만 ${profile.age}세 (어린이)` : `만 ${profile.age}세`} ({profile.gender === 'male' ? '남성' : '여성'})
+                  {profile.birthDate ? ` · ${profile.birthDate}` : ''}
                 </span>
               )}
               {profile.familyHistory && profile.familyHistory.length > 0 && (
@@ -351,7 +359,11 @@ export const DiagnosisReportView: React.FC<DiagnosisReportViewProps> = ({
               )}
             </div>
             <h2 className="text-xl font-extrabold text-slate-900 mt-2">
-              {profile.isFetus || profile.age < 0 ? '태아 & 신생아 종합 보장 분석' : '종합 보장 점수'}
+              {profile.name
+                ? `${profile.name} 님의 건강보험 종합 분석 리포트`
+                : profile.isFetus || profile.age < 0
+                ? '태아 & 신생아 종합 보장 분석'
+                : '종합 보장 점수'}
             </h2>
           </div>
 

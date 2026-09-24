@@ -54,7 +54,9 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
   const [mode, setMode] = useState<'new' | 'remodel'>('remodel');
   const [step, setStep] = useState<number>(1);
 
-  // Step 1: 기본 정보
+  // Step 1: 기본 정보 & 피보험자 정보
+  const [userName, setUserName] = useState<string>('');
+  const [userBirthDate, setUserBirthDate] = useState<string>('');
   const [age, setAge] = useState<number>(32);
   const [gender, setGender] = useState<Gender>('male');
   const [isFetus, setIsFetus] = useState<boolean>(false);
@@ -72,6 +74,7 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
   // 증권 업로드 시 자동 감지된 나이/성별 피드백 상태
   const [autoDetectedAlert, setAutoDetectedAlert] = useState<{
     name?: string;
+    birthDate?: string;
     age: number;
     gender: Gender;
     isGenderUnknown?: boolean;
@@ -112,20 +115,31 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
       });
 
       if (parsed.length > 0) {
-        // 증권에서 피보험자 나이와 성별 자동 추출 반영 (일괄 동기화된 대표값 사용)
-        const representativeWithAge = parsed.find((p) => p.insuredAge && p.insuredAge > 0);
+        // 증권에서 피보험자 나이, 생년월일, 성명, 성별 자동 추출 반영 (일괄 동기화된 대표값 사용)
+        const representativeWithAge = parsed.find((p) => p.insuredAge !== undefined && p.insuredAge >= 0);
         const representativeWithGender = parsed.find((p) => p.insuredGender && !p.isGenderUnknown);
         const representativeWithName = parsed.find((p) => p.insuredName && p.insuredName.trim().length > 1);
+        const representativeWithBirthDate = parsed.find((p) => p.birthDate && p.birthDate.trim().length >= 8);
 
-        const detectedAge = representativeWithAge?.insuredAge || parsed[0]?.insuredAge || age;
+        const detectedAge = representativeWithAge?.insuredAge ?? parsed[0]?.insuredAge ?? age;
         const detectedGender = representativeWithGender?.insuredGender || parsed[0]?.insuredGender || gender;
         const detectedName = representativeWithName?.insuredName || parsed[0]?.insuredName;
+        const detectedBirth = representativeWithBirthDate?.birthDate || parsed[0]?.birthDate;
 
-        setAge(detectedAge);
+        if (detectedName) {
+          setUserName(detectedName);
+        }
+        if (detectedBirth) {
+          setUserBirthDate(detectedBirth);
+        }
+        if (detectedAge !== undefined) {
+          setAge(detectedAge);
+        }
         setGender(detectedGender);
 
         setAutoDetectedAlert({
           name: detectedName,
+          birthDate: detectedBirth,
           age: detectedAge,
           gender: detectedGender,
           isGenderUnknown: !representativeWithGender,
@@ -231,6 +245,8 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
   // 최종 제출
   const handleSubmit = () => {
     const userProfile: UserProfile = {
+      name: userName.trim() || undefined,
+      birthDate: userBirthDate.trim() || undefined,
       age: isFetus ? -1 : Number(age),
       gender,
       familyHistory: familyHistory.filter((item) => item !== 'none'),
@@ -368,6 +384,21 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                     <p className="text-xs text-slate-500 mt-1">
                       태아부터 시니어까지 표준 가이드라인 분석 기준에 맞춰 최적 플랜을 설계합니다.
                     </p>
+                  </div>
+
+                  {/* 피보험자 성명 입력 */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                      <User className="w-3.5 h-3.5 text-blue-600" />
+                      피보험자 성명 (선택)
+                    </label>
+                    <input
+                      type="text"
+                      value={userName}
+                      onChange={(e) => setUserName(e.target.value)}
+                      placeholder="예: 홍길동 (입력 시 맞춤 리포트에 이름이 표시됩니다)"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
                   </div>
 
                   {/* 빠른 생애주기/연령대 선택 칩 (태아 포함) */}
@@ -807,34 +838,87 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                   {/* 인식된 증권 목록 및 실시간 금액 확인/수정 섹션 */}
                   {existingPolicies.length > 0 && (
                     <div className="border border-slate-200 bg-white rounded-2xl p-3.5 space-y-2.5">
-                      <div className="flex flex-wrap justify-between items-center gap-1">
-                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                          <FileStack className="w-4 h-4 text-blue-600" />
-                          등록된 증권 ({existingPolicies.length}건)
-                        </span>
-                        <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
-                          <span>만 {age}세</span>
-                          <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[10px]">
+                      {/* 피보험자 정보 확인 및 직접 수정 박스 */}
+                      <div className="p-3 bg-gradient-to-r from-blue-50/80 to-indigo-50/70 rounded-xl border border-blue-200 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-blue-900 flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5 text-blue-600" />
+                            분석 대상자 (피보험자) 정보
+                          </span>
+                          <span className="text-[10px] font-semibold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-full">
+                            실시간 수정 반영
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <label className="text-[10.5px] font-bold text-slate-700">피보험자 성명</label>
+                            <input
+                              type="text"
+                              value={userName}
+                              onChange={(e) => setUserName(e.target.value)}
+                              placeholder="피보험자 성명 (예: 홍길동)"
+                              className="w-full mt-0.5 px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10.5px] font-bold text-slate-700">생년월일 (선택)</label>
+                            <input
+                              type="text"
+                              value={userBirthDate}
+                              onChange={(e) => setUserBirthDate(e.target.value)}
+                              placeholder="YYYY-MM-DD"
+                              className="w-full mt-0.5 px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-0.5 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-extrabold text-blue-950">만 {age}세</span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setAge((prev) => Math.max(0, prev - 1))}
+                                className="w-5 h-5 rounded bg-white hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center cursor-pointer"
+                              >
+                                -
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setAge((prev) => Math.min(100, prev + 1))}
+                                className="w-5 h-5 rounded bg-white hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center cursor-pointer"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-blue-200">
                             <button
                               type="button"
                               onClick={() => setGender('male')}
-                              className={`px-1.5 py-0.5 rounded font-bold transition-colors ${
-                                gender === 'male' ? 'bg-blue-600 text-white' : 'text-slate-600'
+                              className={`px-2 py-0.5 rounded text-[10.5px] font-bold transition-all ${
+                                gender === 'male' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:bg-slate-100'
                               }`}
                             >
-                              남성
+                              👨 남성
                             </button>
                             <button
                               type="button"
                               onClick={() => setGender('female')}
-                              className={`px-1.5 py-0.5 rounded font-bold transition-colors ${
-                                gender === 'female' ? 'bg-rose-500 text-white' : 'text-slate-600'
+                              className={`px-2 py-0.5 rounded text-[10.5px] font-bold transition-all ${
+                                gender === 'female' ? 'bg-rose-500 text-white shadow-2xs' : 'text-slate-600 hover:bg-slate-100'
                               }`}
                             >
-                              여성
+                              👩 여성
                             </button>
                           </div>
                         </div>
+                      </div>
+
+                      <div className="flex flex-wrap justify-between items-center gap-1 pt-1">
+                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <FileStack className="w-4 h-4 text-blue-600" />
+                          등록된 증권 ({existingPolicies.length}건)
+                        </span>
                       </div>
 
                       <p className="text-[10.5px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100">
@@ -893,6 +977,34 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
                               {/* 인라인 수정 폼 */}
                               {isEditing && (
                                 <div className="p-3 bg-white border-t border-slate-200 space-y-2.5 text-xs">
+                                  <div className="grid grid-cols-2 gap-2 pb-1 border-b border-slate-100">
+                                    <div>
+                                      <label className="text-[10px] text-slate-500 font-bold">피보험자 성명</label>
+                                      <input
+                                        type="text"
+                                        value={pol.insuredName || ''}
+                                        onChange={(e) => {
+                                          handleUpdatePolicy(pol.id!, { insuredName: e.target.value });
+                                          if (!userName) setUserName(e.target.value);
+                                        }}
+                                        placeholder="피보험자 성명"
+                                        className="w-full mt-0.5 p-1.5 bg-slate-50 border border-slate-200 rounded text-xs font-bold text-slate-800"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] text-slate-500 font-bold">생년월일 (선택)</label>
+                                      <input
+                                        type="text"
+                                        value={pol.birthDate || ''}
+                                        onChange={(e) => {
+                                          handleUpdatePolicy(pol.id!, { birthDate: e.target.value });
+                                          if (!userBirthDate) setUserBirthDate(e.target.value);
+                                        }}
+                                        placeholder="YYYY-MM-DD"
+                                        className="w-full mt-0.5 p-1.5 bg-slate-50 border border-slate-200 rounded text-xs font-bold text-slate-800"
+                                      />
+                                    </div>
+                                  </div>
                                   <div className="grid grid-cols-2 gap-2">
                                     <div>
                                       <label className="text-[10px] text-slate-500">보험사명</label>
